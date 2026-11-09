@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC Deck</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #1b1d1f; color: #e6e2d8;
+    font: 17px/1.45 Bahnschrift, "Roboto Condensed", sans-serif-condensed, system-ui, sans-serif; }
+  body { display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+  .box { width: 100%; max-width: 460px; background: #25282b; border-radius: 14px; padding: 28px;
+    box-shadow: 0 2px 0 #34383c inset, 0 6px 0 #121314; }
+  h1 { margin: 0 0 8px; font-size: 26px; font-weight: 600; }
+  p { margin: 0 0 16px; color: #a9a59b; }
+  .pcs { display: grid; gap: 10px; margin: 6px 0 16px; }
+  button { font: inherit; font-weight: 600; padding: 14px; border: 0; border-radius: 10px; cursor: pointer; }
+  .pc { background: #f2a33a; color: #1b1d1f; text-align: left; font-size: 19px; }
+  .pc small { display: block; font-weight: 400; font-size: 14px; opacity: .75; }
+  .alt { background: #34383c; color: #e6e2d8; width: 100%; }
+  details { margin-top: 18px; color: #a9a59b; }
+  summary { cursor: pointer; }
+  label { display: block; margin: 12px 0 6px; }
+  input { width: 100%; box-sizing: border-box; font: inherit; font-size: 20px; padding: 12px 14px;
+    background: #141617; color: #e6e2d8; border: 1px solid #3a3e42; border-radius: 10px; }
+  input:focus { outline: 2px solid #f2a33a; outline-offset: 1px; }
+  .row { margin-top: 10px; }
+  .spin { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #f2a33a; border-right-color: transparent; margin-right: 8px; animation: s 0.8s linear infinite; vertical-align: -1px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  ul { margin: 6px 0 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 id="title">Recherche de ton PC…</h1>
+  <p id="msg"><span class="spin"></span>PC Deck cherche les PC de ton Wi-Fi.</p>
+  <div class="pcs" id="pcs"></div>
+  <button class="alt" type="button" id="again" hidden>Chercher à nouveau</button>
+  <details>
+    <summary>Entrer l'adresse à la main</summary>
+    <form id="f">
+      <label for="ip">Adresse du PC</label>
+      <input id="ip" inputmode="decimal" autocomplete="off" placeholder="192.168.1.24">
+      <div class="row"><button class="alt" type="submit">Se connecter</button></div>
+    </form>
+  </details>
+</div>
+<script>
+  var n = window.PcDeckNative;
+  var el = function (id) { return document.getElementById(id); };
+  if (n) el('ip').value = n.wifiHost();
+
+  function connect(host) { if (n) n.setWifiHost(host); }
+
+  function search() {
+    el('again').hidden = true;
+    el('title').textContent = 'Recherche de ton PC…';
+    el('msg').innerHTML = '<span class="spin"></span>PC Deck cherche les PC de ton Wi-Fi.';
+    // Laisse l'écran s'afficher avant la recherche (elle dure environ 1,5 s)
+    setTimeout(function () {
+      var list = [];
+      try { list = JSON.parse(n ? n.discover() : '[]'); } catch (e) {}
+      // Un seul PC trouvé : on s'y connecte directement
+      if (list.length === 1) { el('title').textContent = 'PC trouvé : ' + list[0].name; el('msg').textContent = 'Connexion…'; connect(list[0].host); return; }
+      el('pcs').innerHTML = '';
+      list.forEach(function (pc) {
+        var b = document.createElement('button');
+        b.className = 'pc'; b.type = 'button';
+        b.textContent = pc.name;
+        var s = document.createElement('small'); s.textContent = pc.host; b.appendChild(s);
+        b.addEventListener('click', function () { connect(pc.host); });
+        el('pcs').appendChild(b);
+      });
+      if (list.length) {
+        el('title').textContent = 'Choisis ton PC';
+        el('msg').textContent = 'Plusieurs PC font tourner PC Deck sur ce Wi-Fi :';
+      } else {
+        el('title').textContent = 'PC introuvable';
+        el('msg').innerHTML = 'Vérifie que :<ul><li>le PC est allumé, avec l\'icône PC Deck près de l\'horloge ;</li><li>la tablette est sur le <b>même Wi-Fi</b> que le PC (pas un Wi-Fi « invité ») ;</li><li>ou branche le câble USB.</li></ul>';
+        el('again').hidden = false;
+        // Nouvel essai automatique (le PC est peut-être en train de démarrer)
+        setTimeout(function () { if (document.activeElement !== el('ip') && n) n.retry(); }, 8000);
+      }
+    }, 50);
+  }
+
+  el('again').addEventListener('click', search);
+  el('f').addEventListener('submit', function (e) { e.preventDefault(); connect(el('ip').value); });
+  search();
+</script>
+</body>
+</html>

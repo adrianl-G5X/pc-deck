@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connecter un appareil · PC Deck</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+  :root {
+    --rack: #1b1d1f; --key: #25282b; --key-top: #34383c; --key-bottom: #121315; --scope: #17191b;
+    --text: #e6e2d8; --text-2: #9ba0a5; --muted: #6c7176; --line: #2a2d30; --amber: #f2a33a; --good: #6fbf73;
+    --font: Bahnschrift, "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--rack); color: var(--text); font: 16px/1.45 var(--font); }
+  main { max-width: 980px; margin: 0 auto; padding: 28px 24px 40px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  h1 { margin: 0; font-size: 26px; font-weight: 600; }
+  .pc { color: var(--text-2); font-size: 15px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs button {
+    font: inherit; font-size: 16px; font-weight: 600; padding: 11px 18px; cursor: pointer; color: var(--text);
+    background: var(--key); border: 0; border-radius: 8px; border-top: 1px solid var(--key-top); border-bottom: 3px solid var(--key-bottom);
+  }
+  .tabs button[aria-selected="true"] { background: var(--amber); color: var(--rack); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .step { background: var(--scope); border-radius: 10px; padding: 18px 20px 20px; }
+  .step h2 { margin: 0 0 6px; font-size: 18px; font-weight: 600; }
+  .step h2 .n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--key-top); margin-right: 8px; font-size: 14px; }
+  .step p { margin: 6px 0 0; color: var(--text-2); }
+  .qr { background: #fff; border-radius: 8px; padding: 10px; width: 220px; height: 220px; margin: 14px 0 4px; }
+  .qr svg { display: block; width: 100%; height: 100%; }
+  .code { font-size: 46px; font-weight: 300; letter-spacing: 10px; margin: 10px 0 2px; font-variant-numeric: tabular-nums; }
+  .timer { color: var(--muted); font-size: 14px; }
+  .url { font-size: 20px; color: var(--text); word-break: break-all; }
+  .actions { margin-top: 12px; }
+  .actions button {
+    font: inherit; font-weight: 600; padding: 10px 16px; cursor: pointer; color: var(--text);
+    background: var(--key); border: 0; border-radius: 8px; border-top: 1px solid var(--key-top); border-bottom: 3px solid var(--key-bottom);
+  }
+  .done { display: none; margin: 0 0 18px; padding: 14px 18px; border-radius: 10px; background: #1f2a20; color: var(--good); font-size: 17px; }
+  .done.show { display: block; }
+  .warn { color: var(--amber); }
+  [hidden] { display: none !important; }
+  small { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Connecter un appareil</h1>
+    <span class="pc" id="pcName"></span>
+  </header>
+
+  <div class="done" id="done" role="status" aria-live="polite"></div>
+  <p class="warn" id="noNetwork" hidden>PC Deck n'est pas ouvert au réseau (réglage « host » à 127.0.0.1 dans config.json) : seuls les navigateurs de ce PC peuvent se connecter.</p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="android" aria-selected="true">Tablette Android</button>
+    <button role="tab" data-tab="ios" aria-selected="false">iPhone ou iPad</button>
+    <button role="tab" data-tab="pc" aria-selected="false">Autre ordinateur</button>
+  </div>
+
+  <!-- Tablette Android -->
+  <section class="grid" data-panel="android">
+    <div class="step" id="apkStep">
+      <h2><span class="n">1</span>Installer l'appli</h2>
+      <p>Scanne ce code avec l'appareil photo de la tablette, télécharge le fichier puis ouvre-le. Android demande d'autoriser l'installation : accepte.</p>
+      <div class="qr" id="qrApk"></div>
+      <small>Déjà installée ? Passe à l'étape 2.</small>
+    </div>
+    <div class="step">
+      <h2><span class="n">2</span>Se connecter</h2>
+      <p>Scanne ce code avec l'appareil photo de la tablette. Ou ouvre l'appli PC Deck : elle trouve ce PC toute seule, puis tape ce code :</p>
+      <div class="qr" id="qrApp"></div>
+      <div class="code" data-code>······</div>
+      <div class="timer" data-timer></div>
+    </div>
+  </section>
+
+  <!-- iPhone / iPad -->
+  <section class="grid" data-panel="ios" hidden>
+    <div class="step">
+      <h2><span class="n">1</span>Scanner</h2>
+      <p>Scanne ce code avec l'appareil photo de l'iPhone, puis touche le lien : Safari s'ouvre et se connecte tout seul.</p>
+      <div class="qr" id="qrWeb"></div>
+      <div class="timer" data-timer></div>
+    </div>
+    <div class="step">
+      <h2><span class="n">2</span>Garder l'icône</h2>
+      <p>Dans Safari, touche <b>Partager</b> puis <b>« Sur l'écran d'accueil »</b>. PC Deck s'ouvrira ensuite en plein écran, comme une appli.</p>
+      <p>Le code, si on te le demande :</p>
+      <div class="code" data-code>······</div>
+    </div>
+  </section>
+
+  <!-- Autre ordinateur -->
+  <section class="grid" data-panel="pc" hidden>
+    <div class="step">
+      <h2><span class="n">1</span>Ouvrir l'adresse</h2>
+      <p>Sur l'autre ordinateur (même Wi-Fi), ouvre cette adresse dans le navigateur :</p>
+      <p class="url" id="pcUrl"></p>
+    </div>
+    <div class="step">
+      <h2><span class="n">2</span>Taper le code</h2>
+      <div class="code" data-code>······</div>
+      <div class="timer" data-timer></div>
+    </div>
+  </section>
+
+  <div class="actions"><button type="button" id="newCode">Nouveau code</button></div>
+</main>
+
+<script src="vendor/qrcode.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let info = null;
+  let shownPaired = 0;
+
+  function drawQr(el, text) {
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    el.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    el.title = text;
+  }
+
+  function render() {
+    const host = info.hosts[0] ? `${info.hosts[0]}:${info.port}` : null;
+    $('pcName').textContent = `Ce PC : ${info.name}`;
+    $('noNetwork').hidden = !!host;
+    $('apkStep').hidden = !info.apk || !host;
+    const code = info.code;
+    for (const el of document.querySelectorAll('[data-code]')) el.textContent = code || '······';
+    const m = Math.floor(info.secondsLeft / 60), s = String(info.secondsLeft % 60).padStart(2, '0');
+    for (const el of document.querySelectorAll('[data-timer]')) {
+      el.textContent = code ? `Valable encore ${m}:${s}, pour un seul appareil.` : 'Code utilisé ou expiré : touche « Nouveau code ».';
+    }
+    if (host) {
+      $('pcUrl').textContent = `http://${host}`;
+      drawQr($('qrApk'), `http://${host}/download/PC-Deck.apk`);
+      if (code) {
+        drawQr($('qrApp'), `pcdeck://pair?h=${encodeURIComponent(host)}&c=${code}`);
+        drawQr($('qrWeb'), `http://${host}/?pair=${code}`);
+      } else {
+        $('qrApp').innerHTML = $('qrWeb').innerHTML = '';
+      }
+    }
+    if (info.paired.length > shownPaired) {
+      shownPaired = info.paired.length;
+      $('done').textContent = `✓ « ${info.paired[info.paired.length - 1]} » est connecté. Pour un autre appareil, touche « Nouveau code ».`;
+      $('done').classList.add('show');
+    }
+  }
+
+  async function load(method) {
+    const r = await fetch('api/pairing', { method, cache: 'no-store' });
+    info = await r.json();
+    render();
+  }
+
+  $('newCode').addEventListener('click', () => { $('done').classList.remove('show'); shownPaired = 0; load('POST'); });
+  for (const b of document.querySelectorAll('[data-tab]')) {
+    b.addEventListener('click', () => {
+      for (const x of document.querySelectorAll('[data-tab]')) x.setAttribute('aria-selected', String(x === b));
+      for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== b.dataset.tab;
+    });
+  }
+  load('POST').catch(() => { document.body.textContent = 'PC Deck ne répond pas.'; });
+  setInterval(() => load('GET').catch(() => {}), 2000);
+</script>
+</body>
+</html>

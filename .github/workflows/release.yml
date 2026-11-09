@@ -1,0 +1,69 @@
+# Publication automatique : à chaque étiquette v1.2.3 envoyée par scripts/release.ps1,
+# GitHub fabrique l'installeur Windows + l'APK signés, signe la mise à jour et publie la version.
+# Secrets à créer une fois (dépôt > Settings > Secrets and variables > Actions), voir GUIDE-PUBLICATION.md :
+#   PCDECK_KEYSTORE_BASE64    clé de signature Android (android\pcdeck.keystore, en base64)
+#   PCDECK_KEYSTORE_PASSWORD  son mot de passe (android\keystore-motdepasse.txt)
+#   PCDECK_UPDATE_KEY         clé privée des mises à jour (pcdeck-update-private.pem, tout le texte)
+name: Publier une version
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: '17'
+
+      - name: Outils Android (build-tools 34, plateforme 34)
+        shell: cmd
+        run: echo y| "%ANDROID_HOME%\cmdline-tools\latest\bin\sdkmanager.bat" "build-tools;34.0.0" "platforms;android-34"
+
+      - name: Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Dépendances et tests
+        run: |
+          npm ci
+          npm test
+
+      - name: Vérifier que l'étiquette correspond à package.json
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Étiquette ${{ github.ref_name }} différente de package.json ($v)" }
+
+      - name: Fabriquer l'installeur et l'APK
+        shell: pwsh
+        env:
+          PCDECK_KEYSTORE_BASE64: ${{ secrets.PCDECK_KEYSTORE_BASE64 }}
+          PCDECK_KEYSTORE_PASSWORD: ${{ secrets.PCDECK_KEYSTORE_PASSWORD }}
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1
+
+      - name: Signer la mise à jour
+        env:
+          PCDECK_UPDATE_KEY: ${{ secrets.PCDECK_UPDATE_KEY }}
+        run: node scripts/make-manifest.js
+
+      - name: Publier sur GitHub
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          gh release create "v$v" --title "PC Deck $v" --notes-file dist/notes.md `
+            "dist/PCDeck-Setup-$v.exe" "dist/PCDeck-Setup-$v.exe.sha256" android/PC-Deck.apk dist/update.json dist/update.json.sig

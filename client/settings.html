@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paramètres · PC Deck</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+  :root {
+    --rack: #1b1d1f; --key: #25282b; --key-top: #34383c; --key-bottom: #121315; --scope: #17191b;
+    --text: #e6e2d8; --text-2: #9ba0a5; --muted: #6c7176; --line: #2a2d30; --amber: #f2a33a; --good: #6fbf73; --bad: #e5654b;
+    --font: Bahnschrift, "Roboto Condensed", "Arial Narrow", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--rack); color: var(--text); font: 16px/1.45 var(--font); }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 24px; background: var(--rack); border-bottom: 1px solid var(--line); }
+  .bar h1 { margin: 0; font-size: 22px; font-weight: 600; margin-right: auto; }
+  .bar .ver { color: var(--muted); font-size: 14px; }
+  #state { font-size: 14px; color: var(--text-2); }
+  #state.dirty { color: var(--amber); }
+  #state.err { color: var(--bad); }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 24px 0; max-width: 1040px; margin: 0 auto; }
+  nav a { color: var(--text-2); text-decoration: none; padding: 6px 10px; border-radius: 6px; background: var(--scope); font-size: 14px; }
+  main { max-width: 1040px; margin: 0 auto; padding: 8px 24px 60px; }
+  section { margin-top: 26px; }
+  h2 { font-size: 19px; font-weight: 600; margin: 0 0 4px; }
+  .hint { color: var(--text-2); margin: 0 0 12px; font-size: 14px; }
+  button, select, input { font: inherit; }
+  .btn { padding: 9px 14px; cursor: pointer; color: var(--text); background: var(--key); border: 0; border-radius: 8px;
+    border-top: 1px solid var(--key-top); border-bottom: 3px solid var(--key-bottom); font-weight: 600; }
+  .btn.main { background: var(--amber); color: var(--rack); }
+  .btn.small { padding: 6px 10px; font-size: 14px; }
+  .btn.danger { color: var(--bad); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .list { display: grid; gap: 8px; }
+  .row { display: flex; align-items: center; gap: 12px; background: var(--scope); border-radius: 8px; padding: 10px 12px; }
+  .row .ico { width: 34px; height: 34px; display: grid; place-items: center; font-size: 22px; flex: none; }
+  .row .ico svg { width: 26px; height: 26px; }
+  .row .txt { flex: 1; min-width: 0; }
+  .row .txt b { display: block; font-weight: 600; }
+  .row .txt span { color: var(--text-2); font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .acts { display: flex; gap: 6px; flex: none; }
+  .tools { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .card { background: var(--scope); border-radius: 10px; padding: 16px 18px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  label.f { display: block; margin: 10px 0 4px; color: var(--text-2); font-size: 14px; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 9px 11px; color: var(--text); background: #141617; border: 1px solid #3a3e42; border-radius: 8px; }
+  input[type=color] { width: 54px; height: 36px; padding: 2px; background: #141617; border: 1px solid #3a3e42; border-radius: 8px; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+  .check { display: flex; align-items: center; gap: 10px; margin: 8px 0; cursor: pointer; }
+  .check input { width: 20px; height: 20px; accent-color: var(--amber); }
+  .warn { color: var(--amber); font-size: 14px; }
+  dialog { background: var(--rack); color: var(--text); border: 1px solid var(--key-top); border-radius: 12px; padding: 0;
+    width: min(620px, calc(100% - 24px)); max-height: calc(100% - 24px); }
+  dialog::backdrop { background: rgba(8, 9, 10, .7); }
+  dialog form { padding: 20px 22px; }
+  dialog h3 { margin: 0 0 6px; font-size: 20px; }
+  .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; margin-top: 4px; }
+  .icons button { height: 42px; display: grid; place-items: center; background: var(--key); border: 1px solid transparent; border-radius: 8px; color: var(--text); cursor: pointer; }
+  .icons button[aria-pressed="true"] { border-color: var(--amber); }
+  .icons svg { width: 22px; height: 22px; }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .keys { cursor: pointer; }
+  ul.sum { margin: 8px 0 0; padding-left: 20px; color: var(--text-2); font-size: 14px; max-height: 240px; overflow: auto; }
+  .muted { color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Paramètres PC Deck</h1>
+  <span class="ver" id="ver"></span>
+  <span id="state" role="status" aria-live="polite">Chargement…</span>
+  <a class="btn" href="/connect" target="_blank">Connecter un appareil</a>
+  <button class="btn main" id="save" disabled>Enregistrer</button>
+</div>
+<nav>
+  <a href="#boutons">Boutons</a><a href="#interrupteurs">Interrupteurs</a><a href="#affichage">Affichage</a>
+  <a href="#son">Son</a><a href="#appareils">Appareils</a><a href="#avance">Avancé</a><a href="#sauvegarde">Sauvegarde</a>
+</nav>
+<main>
+  <section id="maj" class="card" style="margin-top:18px">
+    <h2>Mises à jour</h2>
+    <p class="hint" id="updText" style="margin:4px 0 0">…</p>
+    <div class="tools">
+      <button class="btn main" id="updInstall" hidden>Installer</button>
+      <button class="btn small" id="updCheck">Vérifier maintenant</button>
+    </div>
+  </section>
+
+  <section id="boutons">
+    <h2>Boutons</h2>
+    <p class="hint">Les boutons de la tablette, dans l'ordre d'affichage. Les changements s'appliquent sur tous les appareils dès l'enregistrement.</p>
+    <div class="list" id="btnList"></div>
+    <div class="tools">
+      <button class="btn" id="addBtn">+ Ajouter un bouton</button>
+      <select id="tplSelect" style="width:auto"><option value="">+ Ajouter un modèle…</option></select>
+    </div>
+  </section>
+
+  <section id="interrupteurs">
+    <h2>Interrupteurs</h2>
+    <p class="hint">Voyants à deux positions (ex. micro coupé / actif) : chaque appui envoie le même raccourci clavier.</p>
+    <div class="list" id="togList"></div>
+    <div class="tools"><button class="btn" id="addTog">+ Ajouter un interrupteur</button></div>
+  </section>
+
+  <section id="affichage">
+    <h2>Affichage</h2>
+    <div class="grid2">
+      <div class="card">
+        <label class="f">Thème</label>
+        <select id="theme"><option value="dark">Sombre</option><option value="light">Clair</option></select>
+        <label class="f">Couleur d'accent</label>
+        <input type="color" id="accent">
+        <label class="f">Colonnes de boutons</label>
+        <select id="columns"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
+      </div>
+      <div class="card">
+        <label class="f">Infos affichées</label>
+        <div id="shows"></div>
+        <label class="f">Rafraîchissement des infos</label>
+        <select id="refresh"><option value="1000">Chaque seconde</option><option value="2000">Toutes les 2 secondes</option><option value="5000">Toutes les 5 secondes (économe)</option></select>
+      </div>
+    </div>
+  </section>
+
+  <section id="son">
+    <h2>Son d'une application</h2>
+    <p class="hint">Permet aux boutons de volume de régler le son d'une seule appli (ex. Apple Music, Spotify) grâce à l'interrupteur « Son sur… ».</p>
+    <div class="card">
+      <label class="check"><input type="checkbox" id="audioOn"> Activer</label>
+      <div id="audioFields">
+        <label class="f">Nom affiché</label><input type="text" id="audioLabel" placeholder="Spotify">
+        <label class="f">Nom du programme (sans .exe ; plusieurs : séparés par des virgules)</label>
+        <input type="text" id="audioProc" placeholder="Spotify">
+      </div>
+    </div>
+  </section>
+
+  <section id="appareils">
+    <h2>Appareils connectés</h2>
+    <p class="hint">Retirer un appareil le déconnecte tout de suite ; il faudra un nouveau code pour le reconnecter.</p>
+    <div class="list" id="devList"></div>
+  </section>
+
+  <section id="avance">
+    <h2>Avancé</h2>
+    <div class="grid2">
+      <div class="card">
+        <label class="check"><input type="checkbox" id="autostart"> Lancer PC Deck au démarrage de Windows</label>
+        <label class="check"><input type="checkbox" id="usb"> Mode câble USB (tablette Android avec le débogage USB)</label>
+        <label class="f">Port réseau</label>
+        <input type="number" id="port" min="1024" max="65535">
+        <p class="warn">Ne change le port que si 8787 est déjà pris par un autre logiciel : il faudra reconnecter les appareils.</p>
+      </div>
+      <div class="card">
+        <label class="check"><input type="checkbox" id="remoteOn"> Contrôle à distance (voir l'écran du PC depuis la tablette)</label>
+        <label class="check"><input type="checkbox" id="remotePilot"> … et le piloter (souris, clavier)</label>
+        <p class="warn">Les appareils connectés pourront voir tout ce qui s'affiche sur le PC. N'active que si tu en as besoin.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="sauvegarde">
+    <h2>Sauvegarde et partage</h2>
+    <p class="hint">Exporte tes boutons pour les garder ou les donner à un proche. À l'import, le port, le contrôle à distance et le démarrage de ce PC ne changent pas.</p>
+    <div class="tools">
+      <button class="btn" id="export">Exporter la configuration</button>
+      <button class="btn" id="importBtn">Importer une configuration…</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <p class="hint" style="margin-top:12px">Fichier sur ce PC : <code id="path" class="muted"></code></p>
+  </section>
+</main>
+
+<!-- Éditeur de bouton / d'interrupteur -->
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <h3 id="dlgTitle">Bouton</h3>
+    <label class="f" for="fLabel">Nom</label>
+    <input type="text" id="fLabel" required maxlength="40">
+    <div id="iconBlock">
+      <label class="f">Icône (ou un emoji dans la case)</label>
+      <div class="icons" id="icons"></div>
+      <input type="text" id="fIconText" placeholder="Emoji, ex. 🎮" maxlength="4" style="margin-top:6px">
+      <label class="f">Couleur de l'icône</label>
+      <label class="check"><input type="checkbox" id="fColorOn"> Couleur <input type="color" id="fColor" value="#f2a33a"></label>
+    </div>
+    <div id="styleBlock" hidden>
+      <label class="f">Apparence</label>
+      <select id="fStyle"><option value="switch">Voyant</option><option value="mic">Micro (barré quand coupé)</option></select>
+    </div>
+    <label class="f" for="fType">Action</label>
+    <select id="fType"></select>
+    <div id="fields"></div>
+    <p class="warn" id="dlgErr"></p>
+    <div class="dlg-actions">
+      <button class="btn" value="cancel" formnovalidate>Annuler</button>
+      <button class="btn main" id="dlgOk" value="ok">Valider</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Confirmation d'import -->
+<dialog id="impDlg">
+  <form method="dialog">
+    <h3>Importer cette configuration ?</h3>
+    <p class="hint">Elle remplacera tes boutons, interrupteurs et l'affichage. Vérifie ce qu'elle pourra faire sur ce PC :</p>
+    <ul class="sum" id="impSum"></ul>
+    <div class="dlg-actions"><button class="btn" value="cancel">Annuler</button><button class="btn main" value="ok">Importer</button></div>
+  </form>
+</dialog>
+
+<script src="icons.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let cfg = null;          // configuration en cours d'édition (contenu brut de config.json)
+  let savedText = '';      // pour savoir s'il y a des changements non enregistrés
+  let templates = [];
+  const SHOWS = [['cpu', 'Processeur'], ['gpu', 'Carte graphique'], ['ram', 'Mémoire vive'], ['power', 'Consommation'],
+    ['cpuChart', 'Graphique processeur'], ['gpuChart', 'Graphique carte graphique'], ['netChart', 'Graphique Wi-Fi']];
+
+  // ---------- Chargement / enregistrement ----------
+  async function load() {
+    const r = await fetch('/api/settings', { cache: 'no-store' });
+    const data = await r.json();
+    cfg = data.config;
+    templates = data.templates || [];
+    $('ver').textContent = 'version ' + data.version;
+    $('path').textContent = data.configPath;
+    renderAll(data.devices); // complète les rubriques absentes (display, toggles) avant de mémoriser l'état
+    savedText = JSON.stringify(cfg);
+    setState('Tout est enregistré.');
+  }
+
+  function setState(text, cls = '') { $('state').textContent = text; $('state').className = cls; }
+  function changed() {
+    const dirty = JSON.stringify(cfg) !== savedText;
+    $('save').disabled = !dirty;
+    if (dirty) setState('Modifications non enregistrées', 'dirty');
+  }
+
+  $('save').addEventListener('click', async () => {
+    $('save').disabled = true;
+    setState('Enregistrement…');
+    const r = await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok) { setState('Non enregistré : ' + (res.error || r.status), 'err'); $('save').disabled = false; return; }
+    savedText = JSON.stringify(cfg);
+    if (res.restart) {
+      const port = cfg.server?.port || 8787;
+      setState('Enregistré. Le serveur redémarre sur le port ' + port + '…');
+      setTimeout(() => { location.href = 'http://localhost:' + port + '/settings'; }, 5000);
+    } else {
+      setState('Enregistré et appliqué sur tous les appareils.');
+    }
+  });
+  window.addEventListener('beforeunload', (e) => { if (cfg && JSON.stringify(cfg) !== savedText) e.preventDefault(); });
+
+  // ---------- Affichage des listes ----------
+  function iconHtml(icon) {
+    const svg = typeof iconSvg === 'function' ? iconSvg(icon) : null;
+    if (svg) return svg;
+    const span = document.createElement('span');
+    span.textContent = icon || '';
+    return span.outerHTML;
+  }
+
+  function describe(a) {
+    if (!a) return '';
+    switch (a.type) {
+      case 'open': return /^https?:/i.test(a.target) ? 'Ouvre le site ' + a.target : 'Ouvre ' + a.target;
+      case 'app': return a.path ? 'Lance ' + a.path + (a.args?.length ? ' ' + a.args.join(' ') : '') : 'Lance l\'appli du Store ' + a.appId;
+      case 'keys': return 'Raccourci ' + a.keys;
+      case 'volume': return { up: 'Monte le son', down: 'Baisse le son', mute: 'Coupe / remet le son' }[a.op] + (a.op !== 'mute' ? ' (' + (a.step || 2) + ' %)' : '');
+      case 'lock': return 'Verrouille le PC';
+      case 'window': return 'Affiche la fenêtre de ' + [].concat(a.process).join(', ');
+      case 'tab': return 'Onglet ' + a.url + ' (extension du navigateur)';
+      case 'macro': return 'Suite de ' + a.steps.length + ' actions (modifiable dans config.json)';
+      default: return a.type;
+    }
+  }
+
+  function row(icon, title, sub, acts, color) {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.innerHTML = `<div class="ico"${color ? ` style="color:${color}"` : ''}>${icon}</div><div class="txt"><b></b><span></span></div><div class="acts"></div>`;
+    el.querySelector('b').textContent = title;
+    el.querySelector('.txt span').textContent = sub;
+    for (const [label, fn, cls, disabled] of acts) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn small ' + (cls || ''); b.textContent = label; b.disabled = !!disabled;
+      b.addEventListener('click', fn);
+      el.querySelector('.acts').append(b);
+    }
+    return el;
+  }
+
+  function move(list, i, d) { const [x] = list.splice(i, 1); list.splice(i + d, 0, x); }
+
+  function renderButtons() {
+    const list = cfg.buttons;
+    $('btnList').replaceChildren(...list.map((b, i) => row(iconHtml(b.icon), b.label, describe(b.action), [
+      ['Modifier', () => editItem('button', i)],
+      ['↑', () => { move(list, i, -1); renderButtons(); changed(); }, '', i === 0],
+      ['↓', () => { move(list, i, 1); renderButtons(); changed(); }, '', i === list.length - 1],
+      ['Supprimer', () => { if (confirm(`Supprimer le bouton « ${b.label} » ?`)) { list.splice(i, 1); renderButtons(); changed(); } }, 'danger'],
+    ], b.color)));
+    if (!list.length) $('btnList').innerHTML = '<p class="hint">Aucun bouton.</p>';
+  }
+
+  function renderToggles() {
+    cfg.toggles = cfg.toggles || [];
+    const list = cfg.toggles;
+    $('togList').replaceChildren(...list.map((t, i) => row(iconHtml(t.style === 'mic' ? 'mic' : 'power'), t.label, describe(t.action), [
+      ['Modifier', () => editItem('toggle', i)],
+      ['Supprimer', () => { if (confirm(`Supprimer « ${t.label} » ?`)) { list.splice(i, 1); renderToggles(); changed(); } }, 'danger'],
+    ])));
+    if (!list.length) $('togList').innerHTML = '<p class="hint">Aucun interrupteur.</p>';
+  }
+
+  function renderDevices(devices) {
+    $('devList').replaceChildren(...devices.map((d) => row(iconHtml('activity'), d.name,
+      'Connecté le ' + new Date(d.pairedAt).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' }), [
+      ['Retirer', async () => {
+        if (!confirm(`Retirer « ${d.name} » ? Il sera déconnecté tout de suite.`)) return;
+        const r = await fetch('/api/devices/' + d.id, { method: 'DELETE' });
+        const res = await r.json();
+        if (r.ok) renderDevices(res.devices);
+      }, 'danger'],
+    ])));
+    if (!devices.length) $('devList').innerHTML = '<p class="hint">Aucun appareil. Utilise « Connecter un appareil » en haut de la page.</p>';
+  }
+
+  function renderAll(devices) {
+    cfg.display = cfg.display || {};
+    const d = cfg.display;
+    d.show = d.show || {};
+    renderButtons();
+    renderToggles();
+    if (devices) renderDevices(devices);
+    $('theme').value = d.theme === 'light' ? 'light' : 'dark';
+    $('accent').value = d.accent || '#f2a33a';
+    $('columns').value = String(d.columns || 3);
+    $('refresh').value = String(d.refreshMs || 1000);
+    $('shows').replaceChildren(...SHOWS.map(([k, label]) => {
+      const l = document.createElement('label'); l.className = 'check';
+      l.innerHTML = '<input type="checkbox"> ';
+      l.append(label);
+      const cb = l.querySelector('input'); cb.checked = d.show[k] !== false;
+      cb.addEventListener('change', () => { d.show[k] = cb.checked; changed(); });
+      return l;
+    }));
+    $('audioOn').checked = !!cfg.audioApp;
+    $('audioFields').hidden = !cfg.audioApp;
+    $('audioLabel').value = cfg.audioApp?.label || '';
+    $('audioProc').value = (cfg.audioApp?.processes || []).join(', ');
+    $('autostart').checked = cfg.autostart !== false;
+    $('usb').checked = cfg.usb?.enabled !== false;
+    $('port').value = cfg.server?.port || 8787;
+    $('remoteOn').checked = cfg.remoteControl?.enabled === true;
+    $('remotePilot').checked = cfg.remoteControl?.enabled === true && cfg.remoteControl?.viewOnly !== true;
+    $('remotePilot').disabled = !$('remoteOn').checked;
+    $('tplSelect').length = 1;
+    for (const t of templates) $('tplSelect').add(new Option(t.label, t.id));
+  }
+
+  // ---------- Réglages simples ----------
+  const bind = (id, ev, fn) => $(id).addEventListener(ev, () => { fn($(id)); changed(); });
+  bind('theme', 'change', (el) => { cfg.display.theme = el.value; });
+  bind('accent', 'input', (el) => { cfg.display.accent = el.value; });
+  bind('columns', 'change', (el) => { cfg.display.columns = Number(el.value); });
+  bind('refresh', 'change', (el) => { cfg.display.refreshMs = Number(el.value); });
+  bind('autostart', 'change', (el) => { cfg.autostart = el.checked; });
+  bind('usb', 'change', (el) => { cfg.usb = { ...(cfg.usb || {}), enabled: el.checked }; });
+  bind('port', 'change', (el) => { cfg.server = { ...(cfg.server || {}), port: Number(el.value) || 8787 }; });
+  bind('remoteOn', 'change', (el) => {
+    cfg.remoteControl = { ...(cfg.remoteControl || {}), enabled: el.checked };
+    $('remotePilot').disabled = !el.checked;
+  });
+  bind('remotePilot', 'change', (el) => { cfg.remoteControl = { ...(cfg.remoteControl || {}), viewOnly: !el.checked }; });
+  const audioSync = () => {
+    if (!$('audioOn').checked) { delete cfg.audioApp; $('audioFields').hidden = true; return; }
+    $('audioFields').hidden = false;
+    const procs = $('audioProc').value.split(',').map((s) => s.trim().replace(/\.exe$/i, '')).filter(Boolean);
+    cfg.audioApp = { label: $('audioLabel').value.trim() || procs[0] || 'Appli', processes: procs.length ? procs : ['Spotify'] };
+  };
+  for (const id of ['audioOn', 'audioLabel', 'audioProc']) bind(id, id === 'audioOn' ? 'change' : 'input', audioSync);
+
+  // ---------- Modèles ----------
+  $('tplSelect').addEventListener('change', () => {
+    const t = templates.find((x) => x.id === $('tplSelect').value);
+    $('tplSelect').value = '';
+    if (!t) return;
+    const ids = new Set([...cfg.buttons, ...(cfg.toggles || [])].map((x) => x.id));
+    const clash = [...(t.buttons || []), ...(t.toggles || [])].filter((x) => ids.has(x.id));
+    if (clash.length) { alert(`« ${t.label} » est déjà dans tes boutons.`); return; }
+    cfg.buttons.push(...structuredClone(t.buttons || []));
+    cfg.toggles = [...(cfg.toggles || []), ...structuredClone(t.toggles || [])];
+    if (t.audioApp) cfg.audioApp = structuredClone(t.audioApp);
+    if (t.description) alert(`${t.label} ajouté.\n\n${t.description}`);
+    renderAll();
+    changed();
+  });
+
+  // ---------- Éditeur ----------
+  const TYPES = [
+    ['web', 'Ouvrir un site web'], ['program', 'Lancer un programme'], ['file', 'Ouvrir un fichier ou un dossier'],
+    ['keys', 'Raccourci clavier'], ['volume', 'Volume'], ['lock', 'Verrouiller le PC'],
+    ['window', 'Afficher la fenêtre d\'un programme'], ['tab', 'Onglet du navigateur (extension)'], ['store', 'Appli du Microsoft Store'],
+  ];
+  const kindOf = (a) => {
+    if (!a) return 'web';
+    if (a.type === 'open') return /^https?:/i.test(a.target) ? 'web' : 'file';
+    if (a.type === 'app') return a.path ? 'program' : 'store';
+    return { keys: 'keys', volume: 'volume', lock: 'lock', window: 'window', tab: 'tab' }[a.type] || 'advanced';
+  };
+  // Champs de chaque type d'action : [clé, libellé, aide]
+  const FIELDS = {
+    web: [['target', 'Adresse du site', 'https://www.youtube.com']],
+    program: [['path', 'Chemin du programme', 'C:\\Program Files\\Mozilla Firefox\\firefox.exe'], ['args', 'Arguments (facultatif)', '']],
+    file: [['target', 'Chemin du fichier ou dossier', 'C:\\Users\\Moi\\Documents']],
+    keys: [['keys', 'Raccourci (clique puis appuie sur les touches)', 'ctrl+shift+esc']],
+    volume: [['op', 'Action', ''], ['step', 'Pas en %', '2']],
+    lock: [],
+    window: [['process', 'Nom du programme (sans .exe)', 'chrome'], ['screen', 'Écran', ''], ['ifNotRunning', 'S\'il n\'est pas ouvert, ouvrir (facultatif)', 'https://www.google.com']],
+    tab: [['url', 'Adresse du site', 'https://mail.google.com']],
+    store: [['appId', 'Identifiant de l\'appli (AppUserModelID)', '']],
+    advanced: [],
+  };
+  let editing = null; // { kind: 'button' | 'toggle', index, item }
+
+  function renderIcons(selected) {
+    const names = Object.keys(typeof ICON_PATHS === 'object' ? ICON_PATHS : {});
+    $('icons').replaceChildren(...names.map((n) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.title = n; b.innerHTML = iconSvg(n);
+      b.setAttribute('aria-pressed', String(n === selected));
+      b.addEventListener('click', () => { editing.icon = n; $('fIconText').value = ''; renderIcons(n); });
+      return b;
+    }));
+  }
+
+  function renderFields(kind, a) {
+    $('fields').replaceChildren();
+    if (kind === 'advanced') {
+      $('fields').innerHTML = '<p class="hint">Action avancée : elle est gardée telle quelle. Pour la modifier, édite config.json.</p>';
+      return;
+    }
+    for (const [key, label, ph] of FIELDS[kind]) {
+      const l = document.createElement('label'); l.className = 'f'; l.textContent = label;
+      let input;
+      if (key === 'op') {
+        input = document.createElement('select');
+        input.append(new Option('Monter le son', 'up'), new Option('Baisser le son', 'down'), new Option('Couper / remettre le son', 'mute'));
+        input.value = a?.op || 'up';
+      } else if (key === 'screen') {
+        input = document.createElement('select');
+        input.append(new Option('Le dernier écran utilisé', 'same'), new Option('L\'écran principal', 'primary'), new Option('Le 2e écran', 'secondary'));
+        input.value = a?.screen || 'same';
+      } else {
+        input = document.createElement('input');
+        input.type = key === 'step' ? 'number' : 'text';
+        input.placeholder = ph;
+        let v = a?.[key];
+        if (key === 'args') v = (a?.args || []).join(' ');
+        if (key === 'process') v = [].concat(a?.process || []).join(', ');
+        if (key === 'ifNotRunning') v = a?.ifNotRunning?.target || '';
+        if (key === 'step') v = a?.step ?? 2;
+        input.value = v ?? '';
+        if (key === 'keys') {
+          input.readOnly = true; input.className = 'keys';
+          input.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+            const map = { Escape: 'esc', ' ': 'space', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'enter', Tab: 'tab', Backspace: 'backspace', Delete: 'delete', Insert: 'insert', Home: 'home', End: 'end', PageUp: 'pageup', PageDown: 'pagedown', PrintScreen: 'printscreen' };
+            let k = map[e.key] || (/^F\d{1,2}$/.test(e.key) ? e.key.toLowerCase() : null);
+            if (!k) { const m = /^(Key|Digit)(.)$/.exec(e.code); if (m) k = m[2].toLowerCase(); }
+            if (!k) return;
+            input.value = [e.ctrlKey && 'ctrl', e.shiftKey && 'shift', e.altKey && 'alt', e.metaKey && 'win', k].filter(Boolean).join('+');
+          });
+        }
+      }
+      input.dataset.key = key;
+      l.append(input);
+      $('fields').append(l);
+    }
+  }
+
+  function editItem(kind, index) {
+    const list = kind === 'button' ? cfg.buttons : cfg.toggles;
+    const item = index === null ? null : list[index];
+    editing = { kind, index, icon: item?.icon || (kind === 'button' ? 'globe' : '') };
+    $('dlgTitle').textContent = (index === null ? 'Nouveau ' : 'Modifier ') + (kind === 'button' ? 'bouton' : 'interrupteur');
+    $('fLabel').value = item?.label || '';
+    $('iconBlock').hidden = kind !== 'button';
+    $('styleBlock').hidden = kind !== 'toggle';
+    $('fStyle').value = item?.style || 'switch';
+    const iconIsName = typeof ICON_PATHS === 'object' && editing.icon in ICON_PATHS;
+    $('fIconText').value = iconIsName ? '' : editing.icon;
+    renderIcons(iconIsName ? editing.icon : null);
+    $('fColorOn').checked = !!item?.color;
+    $('fColor').value = item?.color || '#f2a33a';
+    const kindNow = kindOf(item?.action);
+    const allowed = kind === 'toggle' ? TYPES.filter(([k]) => k === 'keys') : TYPES;
+    $('fType').replaceChildren(...allowed.map(([k, l]) => new Option(l, k)));
+    if (kindNow === 'advanced') $('fType').add(new Option('Action avancée', 'advanced'));
+    $('fType').value = kind === 'toggle' ? 'keys' : kindNow;
+    renderFields($('fType').value, item?.action);
+    $('dlgErr').textContent = '';
+    $('dlg').showModal();
+  }
+  $('fType').addEventListener('change', () => renderFields($('fType').value, null));
+  $('fIconText').addEventListener('input', () => { if ($('fIconText').value) { editing.icon = $('fIconText').value; renderIcons(null); } });
+
+  function buildAction(kind, old) {
+    const v = Object.fromEntries([...$('fields').querySelectorAll('[data-key]')].map((el) => [el.dataset.key, el.value.trim()]));
+    switch (kind) {
+      case 'web': return { type: 'open', target: /^https?:\/\//i.test(v.target) ? v.target : 'https://' + v.target };
+      case 'file': return { type: 'open', target: v.target };
+      case 'program': return { type: 'app', path: v.path.replace(/^"|"$/g, ''), ...(v.args ? { args: v.args.match(/"[^"]*"|\S+/g).map((s) => s.replace(/^"|"$/g, '')) } : {}) };
+      case 'store': return { type: 'app', appId: v.appId };
+      case 'keys': return { type: 'keys', keys: v.keys };
+      case 'volume': return { type: 'volume', op: v.op, ...(v.op !== 'mute' ? { step: Number(v.step) || 2, bigStep: old?.bigStep || 10 } : {}) };
+      case 'lock': return { type: 'lock' };
+      case 'window': return { type: 'window', process: v.process.split(',').map((s) => s.trim().replace(/\.exe$/i, '')).filter(Boolean), screen: v.screen,
+        ...(v.ifNotRunning ? { ifNotRunning: { type: 'open', target: v.ifNotRunning } } : {}) };
+      case 'tab': return { type: 'tab', url: /^https?:\/\//i.test(v.url) ? v.url : 'https://' + v.url };
+      default: return old;
+    }
+  }
+
+  const slug = (s) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'bouton';
+
+  $('dlgForm').addEventListener('submit', (e) => {
+    if (e.submitter?.value !== 'ok') return;
+    const kind = $('fType').value;
+    const empty = [...$('fields').querySelectorAll('[data-key]')].find((el) => !el.value.trim() && !['args', 'ifNotRunning', 'step'].includes(el.dataset.key));
+    if (!$('fLabel').value.trim() || empty) { e.preventDefault(); $('dlgErr').textContent = 'Remplis le nom et ' + (empty ? '« ' + empty.parentElement.firstChild.textContent + ' »' : 'les champs') + '.'; return; }
+    const list = editing.kind === 'button' ? cfg.buttons : cfg.toggles;
+    const old = editing.index === null ? null : list[editing.index];
+    const item = { ...(old || {}) };
+    item.label = $('fLabel').value.trim();
+    if (!old) {
+      const ids = new Set([...cfg.buttons, ...cfg.toggles].map((x) => x.id));
+      let id = slug(item.label), n = 2;
+      while (ids.has(id)) id = slug(item.label) + '-' + n++;
+      item.id = id;
+    }
+    item.action = buildAction(kind, old?.action);
+    if (editing.kind === 'button') {
+      item.icon = editing.icon || '';
+      if ($('fColorOn').checked) item.color = $('fColor').value; else delete item.color;
+    } else {
+      item.style = $('fStyle').value;
+    }
+    if (old) list[editing.index] = item; else list.push(item);
+    renderButtons(); renderToggles(); changed();
+  });
+  $('addBtn').addEventListener('click', () => editItem('button', null));
+  $('addTog').addEventListener('click', () => { cfg.toggles = cfg.toggles || []; editItem('toggle', null); });
+
+  // ---------- Export / import ----------
+  $('export').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'pc-deck-configuration.json'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', async () => {
+    const file = $('importFile').files[0];
+    $('importFile').value = '';
+    if (!file) return;
+    let imp;
+    try { imp = JSON.parse(await file.text()); } catch { alert('Ce fichier n\'est pas une configuration PC Deck valide.'); return; }
+    if (!Array.isArray(imp.buttons)) { alert('Ce fichier ne contient pas de boutons PC Deck.'); return; }
+    // Tout ce que la configuration pourra déclencher sur ce PC, en clair, avant d'accepter
+    const lines = [];
+    const walk = (a, who) => {
+      if (!a) return;
+      lines.push(`${who} : ${describe(a)}`);
+      if (a.type === 'macro') a.steps.forEach((s) => walk(s, who + ' (étape)'));
+      if (a.ifNotRunning) walk(a.ifNotRunning, who + ' (si fermé)');
+    };
+    imp.buttons.forEach((b) => walk(b.action, b.label));
+    (imp.toggles || []).forEach((t) => walk(t.action, t.label));
+    $('impSum').replaceChildren(...lines.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; }));
+    $('impDlg').showModal();
+    $('impDlg').onclose = () => {
+      if ($('impDlg').returnValue !== 'ok') return;
+      // Ce qui concerne la sécurité et ce PC reste comme avant
+      cfg = { ...imp, server: cfg.server, usb: cfg.usb, remoteControl: cfg.remoteControl, autostart: cfg.autostart };
+      renderAll();
+      changed();
+      setState('Configuration importée : vérifie puis clique sur « Enregistrer ».', 'dirty');
+    };
+  });
+
+  // ---------- Mises à jour ----------
+  function showUpdate(u) {
+    $('updInstall').hidden = !u.available;
+    $('updCheck').hidden = !u.configured;
+    if (!u.configured) $('updText').textContent = 'Version ' + u.current + '. Les mises à jour automatiques ne sont pas encore configurées (dépôt GitHub à renseigner).';
+    else if (u.checking) $('updText').textContent = 'Vérification…';
+    else if (u.available) $('updText').textContent = `Nouvelle version ${u.latest} disponible (tu as la ${u.current}). ${u.notes ? 'Nouveautés : ' + u.notes.replace(/\s+/g, ' ').slice(0, 300) : ''}`;
+    else if (u.error) $('updText').textContent = `Version ${u.current}. Dernière vérification impossible : ${u.error}`;
+    else $('updText').textContent = `Version ${u.current} : PC Deck est à jour.`;
+  }
+  $('updCheck').addEventListener('click', async () => { $('updText').textContent = 'Vérification…'; showUpdate(await (await fetch('/api/update/check', { method: 'POST' })).json()); });
+  $('updInstall').addEventListener('click', async () => {
+    if (!confirm('Installer la nouvelle version ? Tes réglages et tes appareils sont gardés. Windows va demander l\'autorisation, puis PC Deck redémarrera.')) return;
+    $('updText').textContent = 'Téléchargement et vérification de la mise à jour…';
+    const r = await fetch('/api/update/install', { method: 'POST' });
+    const res = await r.json();
+    $('updText').textContent = r.ok ? 'Installation lancée : accepte la demande de Windows. Cette page se reconnectera après le redémarrage.' : 'Échec : ' + res.error;
+  });
+  fetch('/api/update').then((r) => r.json()).then(showUpdate).catch(() => {});
+
+  load().catch((e) => setState('Erreur de chargement : ' + e.message, 'err'));
+</script>
+</body>
+</html>
