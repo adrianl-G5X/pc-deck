@@ -5,6 +5,8 @@ le script de publication les range sous le bon numéro, et elles s'affichent dan
 notification de mise à jour de tes proches.
 
 ## Prochaine version
+
+## 0.4.2 — 2026-11-09
 - Un programme déjà ouvert (navigateur, appli, dossier) revient au premier plan au lieu de s'ouvrir une deuxième fois ; réduit, il est restauré.
 - Double appui sur un bouton de navigateur : nouvel onglet dans la fenêtre déjà ouverte.
 - Double appui sur un bouton de dossier : nouvel onglet de l'Explorateur sur ce dossier.
