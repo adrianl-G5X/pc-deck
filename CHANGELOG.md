@@ -6,13 +6,16 @@ notification de mise à jour de tes proches.
 
 ## Prochaine version
 
+## 0.4.1 — 2026-11-09
+- Première version publiée automatiquement (test des mises à jour) : aucune nouveauté pour l'instant.
+
 ## 0.4.0 — 2026-11-09
 - Fenêtre « Paramètres » sur le PC : créer, modifier, réordonner et supprimer les boutons (nom, icône, couleur, action), interrupteurs, modèles prêts à l'emploi.
 - Affichage réglable : thème clair ou sombre, couleur d'accent, nombre de colonnes, infos affichées, rythme de rafraîchissement.
 - Liste des appareils connectés, avec suppression.
 - Export et import de la configuration (l'import montre tout ce qu'elle pourra lancer avant d'accepter).
 - Mises à jour automatiques du PC (vérifiées et signées) et de l'appli tablette (fournie par le PC).
-- Programmes compilés à la place des scripts PowerShell (plus rapides, moins d'alertes antivirus).
+- Programmes compilés disponibles en option (pour une future version signée numériquement).
 
 ## 0.3.0 — 2026-11-08
 - Appairage sans taper d'adresse : QR codes, code à usage unique valable 5 minutes.
