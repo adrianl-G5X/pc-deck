@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b1d1f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PC Deck">
+<title>PC Deck</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<main class="layout">
+  <!-- Gauche : boutons -->
+  <section class="panel">
+    <div class="panel-head">
+      <h1>PC Deck</h1>
+      <div class="head-right">
+        <span class="status" id="status">Connexion…</span>
+        <button class="icon-btn" id="remoteBtn" type="button" title="Écran du PC" aria-label="Voir et piloter l'écran du PC" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+        </button>
+        <button class="icon-btn" id="fullscreenBtn" type="button" title="Plein écran" aria-label="Plein écran">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        </button>
+      </div>
+    </div>
+    <!-- Rangée de voyants : interrupteurs du son + interrupteurs de config.json (micro Discord) -->
+    <div class="leds">
+    <div class="switches">
+      <label class="audio-switch" id="audioSwitch" hidden>
+        <input type="checkbox" id="audioApp">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span>Son sur <b id="audioAppLabel">l'application</b></span>
+      </label>
+      <label class="audio-switch">
+        <input type="checkbox" id="bigStep">
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span>Volume de <b>10 en 10</b></span>
+      </label>
+    </div>
+    <div class="toggles" id="toggles"></div>
+    </div>
+    <div class="buttons" id="buttons"></div>
+  </section>
+
+  <!-- Droite : infos en temps réel -->
+  <section class="panel">
+    <div class="tiles">
+      <button class="card tile-link" type="button" data-detail="cpu" aria-label="Détails du processeur">
+        <h2>Processeur <span class="more" aria-hidden="true">›</span></h2>
+        <div class="big"><span id="cpuUsage">—</span><span class="unit"> %</span></div>
+        <div class="rows"><b id="cpuTemp">—</b> · <b id="cpuPower">—</b></div>
+      </button>
+      <button class="card tile-link" type="button" data-detail="gpu" aria-label="Détails de la carte graphique">
+        <h2>Carte graphique <span class="more" aria-hidden="true">›</span></h2>
+        <div class="big"><span id="gpuUsage">—</span><span class="unit"> %</span></div>
+        <div class="rows"><b id="gpuTemp">—</b> · <b id="gpuPower">—</b></div>
+      </button>
+      <button class="card tile-link" type="button" data-detail="ram" aria-label="Détails de la mémoire vive">
+        <h2>Mémoire vive <span class="more" aria-hidden="true">›</span></h2>
+        <div class="big"><span id="ramPct">—</span><span class="unit"> %</span></div>
+        <div class="rows"><b id="ramUsed">—</b></div>
+      </button>
+      <div class="card" id="tilePower">
+        <h2>Conso CPU + GPU</h2>
+        <div class="big"><span id="powerMeasured">—</span><span class="unit"> W</span></div>
+        <div class="rows" title="Estimation du PC entier">PC ≈ <b id="powerWall">—</b></div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-row">
+        <div class="card chart-card">
+          <div class="card-head">
+            <h2>Processeur <span class="sub">W · 1 min</span></h2>
+            <b class="head-value" id="lgCpu">—</b>
+            <button class="icon-btn expand" type="button" aria-label="Agrandir le graphique"></button>
+          </div>
+          <div id="cpuChart"></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-head">
+            <h2>Carte graphique <span class="sub">W · 1 min</span></h2>
+            <b class="head-value" id="lgGpu">—</b>
+            <button class="icon-btn expand" type="button" aria-label="Agrandir le graphique"></button>
+          </div>
+          <div id="gpuChart"></div>
+        </div>
+      </div>
+      <div class="card chart-card net-card">
+        <div class="card-head">
+          <h2>Wi-Fi <span class="sub">2 min</span></h2>
+          <div class="legend">
+            <span><span class="swatch" style="background:var(--series-1)"></span>Réception <b id="lgDown">—</b></span>
+            <span><span class="swatch" style="background:var(--series-2)"></span>Envoi <b id="lgUp">—</b></span>
+          </div>
+          <button class="icon-btn expand" type="button" aria-label="Agrandir le graphique"></button>
+        </div>
+        <div class="net-body">
+          <div id="netChart"></div>
+          <div class="apps">
+            <div class="apps-title">Applis</div>
+            <div id="netApps"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="warn" id="lhmWarn"></p>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Nouvelle version de l'appli tablette (fournie par le PC) -->
+<div class="app-update" id="appUpdate" role="status" hidden>
+  <p id="appUpdateText"></p>
+  <p class="help" id="appUpdateHelp">Sur le PC : clic droit sur l'icône PC Deck → « Connecter une tablette » → QR code « Installer l'appli ».</p>
+  <div class="row">
+    <button type="button" id="appUpdateBtn">Installer</button>
+    <button type="button" id="appUpdateLater">Plus tard</button>
+  </div>
+</div>
+
+<!-- Indicateur de volume (comme sur l'écran du PC) -->
+<div class="volume-hud" id="volumeHud" role="status" aria-live="polite">
+  <span class="hud-icon" id="hudIcon"></span>
+  <div class="hud-main">
+    <span class="hud-label" id="hudLabel"></span>
+    <div class="hud-track"><div class="hud-fill" id="hudFill"></div></div>
+  </div>
+  <b class="hud-value" id="hudValue"></b>
+</div>
+
+<!-- Fenêtre de détails (processeur / carte graphique) -->
+<div class="sheet" id="detail" hidden>
+  <div class="sheet-box" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="sheet-head">
+      <h2 id="detailTitle"></h2>
+      <button class="icon-btn" id="detailClose" type="button" aria-label="Fermer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Écran d'appairage (affiché tant que l'appareil n'est pas reconnu) -->
+<div class="pair" id="pair" hidden>
+  <form class="pair-box" id="pairForm">
+    <h1>Appairer cet appareil</h1>
+    <p>Sur le PC : clic droit sur l'icône PC Deck près de l'horloge, puis <b>« Connecter un appareil »</b>. Tape le code à 6 chiffres affiché.</p>
+    <input id="pairCode" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="off" placeholder="••••••" required>
+    <button type="submit">Valider</button>
+    <div class="pair-error" id="pairError"></div>
+  </form>
+</div>
+
+<!-- Écran du PC en direct (contrôle à distance) -->
+<div class="remote" id="remote" hidden>
+  <div class="remote-bar">
+    <button class="remote-key" id="remoteClose" type="button">Fermer</button>
+    <div class="remote-mons" id="remoteMons"></div>
+    <span class="remote-info" id="remoteInfo"></span>
+    <div class="remote-fps" id="remoteFps" role="group" aria-label="Fluidité">
+      <button class="remote-key" type="button" data-fps="15" title="Économie d'énergie">Éco 15</button>
+      <button class="remote-key" type="button" data-fps="30">Normal 30</button>
+      <button class="remote-key" type="button" data-fps="60">Élevé 60</button>
+    </div>
+    <button class="remote-key" id="remoteFull" type="button" hidden>Plein écran</button>
+    <button class="remote-key" id="remoteKbd" type="button">Clavier</button>
+    <button class="remote-key" id="remoteRight" type="button" title="Le prochain appui sera un clic droit">Clic droit</button>
+  </div>
+  <button class="remote-handle" id="remoteHandle" type="button" aria-label="Afficher la barre">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <button class="remote-zoom" id="remoteZoom" type="button" hidden aria-label="Revenir à l'image entière">1×</button>
+  <div class="remote-stage" id="remoteStage">
+    <img id="remoteImg" alt="Écran du PC" draggable="false">
+  </div>
+  <input class="remote-input" id="remoteInput" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Clavier du PC">
+</div>
+
+<script src="chart.js"></script>
+<script src="remote.js"></script>
+<script src="icons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{
+  "autostart": true,
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8787
+  },
+  "usb": {
+    "enabled": true,
+    "adbPath": ""
+  },
+  "remoteControl": {
+    "enabled": false,
+    "viewOnly": false
+  },
+  "toggles": [],
+  "buttons": [
+    {
+      "id": "navigateur",
+      "label": "Navigateur",
+      "icon": "globe",
+      "action": {
+        "type": "open",
+        "target": "https://www.google.com"
+      }
+    },
+    {
+      "id": "verrouiller",
+      "label": "Verrouiller",
+      "icon": "lock",
+      "action": {
+        "type": "lock"
+      }
+    },
+    {
+      "id": "gestionnaire-taches",
+      "label": "Gestionnaire des tâches",
+      "icon": "activity",
+      "action": {
+        "type": "keys",
+        "keys": "ctrl+shift+esc"
+      }
+    },
+    {
+      "id": "volume-moins",
+      "label": "Volume −",
+      "icon": "volume-down",
+      "action": {
+        "type": "volume",
+        "op": "down",
+        "step": 2,
+        "bigStep": 10
+      }
+    },
+    {
+      "id": "volume-plus",
+      "label": "Volume +",
+      "icon": "volume-up",
+      "action": {
+        "type": "volume",
+        "op": "up",
+        "step": 2,
+        "bigStep": 10
+      }
+    },
+    {
+      "id": "son",
+      "label": "Son on/off",
+      "icon": "volume-x",
+      "action": {
+        "type": "volume",
+        "op": "mute"
+      }
+    }
+  ]
+}

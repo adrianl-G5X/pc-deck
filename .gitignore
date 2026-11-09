@@ -1,0 +1,25 @@
+# Dépendances et fabrication
+node_modules/
+dist/
+android/build/
+android/res/mipmap-xxxhdpi/
+android/*.apk
+android/*.idsig
+
+# SECRETS : ne jamais publier
+android/pcdeck.keystore
+android/keystore-motdepasse.txt
+*.keystore
+*.pem
+!server/update-key.pem
+
+# Données personnelles / anciennes données du dossier (maintenant dans %LOCALAPPDATA%\PC Deck)
+data/
+config.json
+*.migrated
+*.log
+
+# Divers
+.claude/
+.vscode/
+Thumbs.db

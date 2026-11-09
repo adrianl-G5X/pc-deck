@@ -1,0 +1,64 @@
+{
+  "templates": [
+    {
+      "id": "apple-music",
+      "label": "Apple Music",
+      "description": "Bouton qui ouvre ou affiche Apple Music sur le 2e écran, et interrupteur « Son sur Apple Music ».",
+      "audioApp": { "label": "Apple Music", "processes": ["AppleMusic", "AMPLibraryAgent"] },
+      "buttons": [
+        {
+          "id": "apple-music",
+          "label": "Apple Music",
+          "icon": "music",
+          "action": {
+            "type": "window",
+            "process": "AppleMusic",
+            "screen": "secondary",
+            "ifNotRunning": { "type": "app", "appId": "AppleInc.AppleMusicWin_nzyj5cx40ttqa!App" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "discord-mute",
+      "label": "Micro Discord",
+      "description": "Interrupteur micro coupé / actif. Dans Discord : Paramètres > Raccourcis, ajouter « Activer/désactiver la sourdine » avec Ctrl + Maj + Alt + M.",
+      "toggles": [
+        {
+          "id": "discord-micro",
+          "label": "Micro Discord",
+          "style": "mic",
+          "action": { "type": "keys", "keys": "ctrl+shift+alt+m" }
+        }
+      ]
+    },
+    {
+      "id": "gmail",
+      "label": "Gmail",
+      "description": "Affiche l'onglet Gmail ; un 2e appui ouvre un nouvel onglet. Demande l'extension PC Deck du navigateur.",
+      "requires": "extension",
+      "buttons": [
+        {
+          "id": "gmail",
+          "label": "Gmail",
+          "icon": "mail",
+          "action": { "type": "tab", "url": "https://mail.google.com", "match": "https://mail.google.com/*" }
+        }
+      ]
+    },
+    {
+      "id": "icloud",
+      "label": "iCloud",
+      "description": "Affiche l'onglet iCloud ; un 2e appui ouvre un nouvel onglet. Demande l'extension PC Deck du navigateur.",
+      "requires": "extension",
+      "buttons": [
+        {
+          "id": "icloud",
+          "label": "iCloud",
+          "icon": "cloud",
+          "action": { "type": "tab", "url": "https://www.icloud.com", "match": "https://*.icloud.com/*" }
+        }
+      ]
+    }
+  ]
+}

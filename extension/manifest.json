@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "PC Deck – onglets",
+  "description": "Permet aux boutons PC Deck de retrouver un onglet déjà ouvert (Gmail, iCloud…) ou d'en ouvrir un nouveau.",
+  "version": "1.1.0",
+  "permissions": ["tabs", "alarms"],
+  "background": { "service_worker": "background.js" },
+  "icons": { "128": "icon-128.png" }
+}
