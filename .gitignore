@@ -5,6 +5,7 @@ android/build/
 android/res/mipmap-xxxhdpi/
 android/*.apk
 android/*.idsig
+android/*.apk.json
 
 # SECRETS : ne jamais publier
 android/pcdeck.keystore

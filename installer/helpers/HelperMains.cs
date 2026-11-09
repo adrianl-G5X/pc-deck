@@ -39,6 +39,16 @@ static class Program {
                         PcDeck.Osd.Show(p.Length > 3 ? string.Join(" ", p, 3, p.Length - 3) : "", int.Parse(p[1]), p[2] == "1");
                         reply = "ok";
                         break;
+                    case "text":
+                        PcDeck.Keyboard.Type(Encoding.UTF8.GetString(Convert.FromBase64String(p[1])));
+                        reply = "ok";
+                        break;
+                    case "fg":
+                        reply = "ok:" + PcDeck.Windows.ForegroundName();
+                        break;
+                    case "folder":
+                        reply = "notfound"; // version compilée : le dossier est simplement ouvert
+                        break;
                     case "sysvol":
                         reply = PcDeck.AppVolume.ChangeSystem(p[1], int.Parse(p[2]));
                         break;

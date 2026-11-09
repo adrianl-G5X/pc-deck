@@ -426,7 +426,7 @@ function checkVersions(msg) {
 }
 $('appUpdateBtn').addEventListener('click', () => {
   NATIVE.installUpdate();
-  $('appUpdateText').textContent = 'Téléchargement depuis le PC… Android va demander de confirmer l\'installation.';
+  $('appUpdateText').textContent = 'Téléchargement depuis le PC… Touche « Mettre à jour » quand Android le demande. L\'appli se ferme ensuite : rouvre-la depuis son icône.';
 });
 
 // ---------- Affichage (réglé dans la page Paramètres du PC) ----------
@@ -451,6 +451,37 @@ function applyDisplay(d) {
   for (const [key, el] of Object.entries(parts)) if (el) el.hidden = show[key] === false;
   const row = document.querySelector('.chart-row');
   if (row) row.hidden = show.cpuChart === false && show.gpuChart === false;
+}
+
+// ---------- Simple ou double appui ----------
+// Pour un bouton qui a une action de double appui, on attend 300 ms un éventuel 2e appui,
+// puis on envoie UNE seule commande au PC : « single » ou « double » (jamais les deux).
+// Les autres boutons partent tout de suite.
+const DOUBLE_TAP_MS = 400; // 300 ms était trop court au doigt sur une tablette
+let pendingTap = null; // { id, timer }
+function pressButton(b) {
+  if (pendingTap && pendingTap.id === b.id) {
+    clearTimeout(pendingTap.timer);
+    pendingTap = null;
+    send({ type: 'run', id: b.id, press: 'double' });
+    return;
+  }
+  if (pendingTap) { // un autre bouton attendait : on l'envoie tout de suite en appui simple
+    clearTimeout(pendingTap.timer);
+    send({ type: 'run', id: pendingTap.id, press: 'single' });
+    pendingTap = null;
+  }
+  if (!b.double) {
+    send({ type: 'run', id: b.id, press: 'single' });
+    return;
+  }
+  pendingTap = {
+    id: b.id,
+    timer: setTimeout(() => {
+      pendingTap = null;
+      send({ type: 'run', id: b.id, press: 'single' });
+    }, DOUBLE_TAP_MS),
+  };
 }
 
 function showButtons(buttons) {
@@ -479,7 +510,7 @@ function showButtons(buttons) {
         el.append(target);
       }
       if (b.color) el.style.setProperty('--btn-color', b.color);
-      el.addEventListener('click', () => send({ type: 'run', id: b.id }));
+      el.addEventListener('click', () => pressButton(b));
       return el;
     })
   );

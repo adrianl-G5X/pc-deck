@@ -76,6 +76,9 @@ $itemNet = $menu.Items.Add('Réseau « Public » : autoriser la tablette...')
 $itemNet.Visible = $false
 $itemUpdate = $menu.Items.Add('Installer la mise à jour')
 $itemUpdate.Visible = $false
+$itemRemote = $menu.Items.Add('Accès hors de chez toi...')
+$itemLhm = $menu.Items.Add('Températures : réparer...')
+$itemLhm.Visible = $false
 [void]$menu.Items.Add('-')
 $itemSettings = $menu.Items.Add('Paramètres...')
 $itemOpen = $menu.Items.Add('Ouvrir PC Deck')
@@ -85,8 +88,32 @@ $itemRestart = $menu.Items.Add('Redémarrer le serveur')
 $itemQuit = $menu.Items.Add('Quitter PC Deck')
 $tray.ContextMenuStrip = $menu
 
+# ---------- Accès hors de chez soi (Tailscale) ----------
+# Le script est dans tools\ (installé) ou installer\ (dossier de développement)
+$tsScript = @((Join-Path $root 'tools\setup-tailscale.ps1'), (Join-Path $root 'installer\setup-tailscale.ps1')) | Where-Object { Test-Path $_ } | Select-Object -First 1
+function Get-RemoteState {
+  if (-not $tsScript) { return 'none' }
+  try { return ((& powershell -NoProfile -ExecutionPolicy Bypass -File $tsScript -Step status) | Select-Object -First 1) } catch { return 'none' }
+}
+$script:remoteState = 'none'
 $menu.add_Opening({
   $itemNet.Visible = (@(Get-PublicNetworks).Count -gt 0)
+  $script:remoteState = Get-RemoteState
+  $itemRemote.Visible = $script:remoteState -ne 'none'
+  if ($script:remoteState -like 'on:*') { $itemRemote.Text = "Accès hors de chez toi : activé ($($script:remoteState.Substring(3)))"; $itemRemote.Enabled = $false }
+  elseif ($script:remoteState -eq 'login') { $itemRemote.Text = 'Accès hors de chez toi : se connecter à Tailscale...'; $itemRemote.Enabled = $true }
+  else { $itemRemote.Text = 'Accès hors de chez toi : installer Tailscale...'; $itemRemote.Enabled = $true }
+})
+$itemRemote.add_Click({
+  if ($script:remoteState -eq 'missing') {
+    $a = [System.Windows.Forms.MessageBox]::Show("Installer Tailscale (gratuit) pour utiliser PC Deck hors de chez toi ?`n`nTailscale est un réseau privé chiffré entre TES appareils. Windows va demander l'autorisation.", 'PC Deck', 'YesNo', 'Question')
+    if ($a -ne 'Yes') { return }
+    $tray.ShowBalloonTip(5000, 'PC Deck', 'Installation de Tailscale...', 'Info')
+    try { Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$tsScript`"", '-Step', 'install' } catch { return }
+  }
+  # Page de connexion Tailscale (en arrière-plan : le script attend que tu aies fini)
+  Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$tsScript`"", '-Step', 'login'
+  Start-Process ("http://localhost:{0}/connect#remote" -f (Get-Port))
 })
 # Passe en "Privé" les réseaux en "Public" (demande l'autorisation administrateur de Windows)
 $itemNet.add_Click({
@@ -177,6 +204,43 @@ $updTimer = New-Object System.Windows.Forms.Timer
 $updTimer.Interval = 2 * 60 * 1000
 $updTimer.add_Tick({ $updTimer.Interval = 60 * 60 * 1000; Check-Update })
 $updTimer.Start()
+
+# ---------- LibreHardwareMonitor (températures) : relancé s'il ne tourne pas ----------
+# Installé : lancé par la tâche planifiée « PC Deck - LibreHardwareMonitor » (droits élevés, sans demande).
+# S'il manque, on relance la tâche ; si la tâche est absente ou ne marche pas, le menu propose
+# « Températures : réparer... » qui la recrée (Windows demande l'autorisation une fois).
+$lhmExe = Join-Path $root 'lhm\LibreHardwareMonitor.exe'
+$lhmTask = 'PC Deck - LibreHardwareMonitor'
+$script:lhmTries = 0
+function Ensure-Lhm {
+  if (-not (Test-Path $lhmExe)) { return }                     # dossier de développement : LHM lancé à la main
+  if (Get-Process LibreHardwareMonitor -ErrorAction SilentlyContinue) { $itemLhm.Visible = $false; $script:lhmTries = 0; return }
+  $script:lhmTries++
+  try { Start-ScheduledTask -TaskName $lhmTask -ErrorAction Stop } catch { $script:lhmTries = 99 }
+  if ($script:lhmTries -ge 3 -and -not $itemLhm.Visible) {
+    $itemLhm.Visible = $true
+    $tray.ShowBalloonTip(10000, 'PC Deck', "Les températures ne démarrent pas. Clic droit sur l'icône PC Deck : « Températures : réparer... ».", 'Warning')
+  }
+}
+$itemLhm.add_Click({
+  $script_ = Join-Path $root 'tools\register-lhm-task.ps1'
+  try {
+    Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$script_`"", '-App', "`"$root`"", '-User', $env:USERNAME
+  } catch { return } # autorisation refusée
+  Start-Sleep 5
+  $script:lhmTries = 0
+  if (Get-Process LibreHardwareMonitor -ErrorAction SilentlyContinue) {
+    $itemLhm.Visible = $false
+    $tray.ShowBalloonTip(4000, 'PC Deck', 'Températures réparées.', 'Info')
+  } else {
+    [System.Windows.Forms.MessageBox]::Show("LibreHardwareMonitor ne démarre toujours pas.`n`nEssaie de le lancer à la main :`n$lhmExe`net note le message qui s'affiche.", 'PC Deck') | Out-Null
+  }
+})
+$lhmTimer = New-Object System.Windows.Forms.Timer
+$lhmTimer.Interval = 60 * 1000
+$lhmTimer.add_Tick({ Ensure-Lhm })
+$lhmTimer.Start()
+Ensure-Lhm
 
 # Aucun appareil encore connecté (juste après l'installation) : on ouvre la page de connexion
 $devices = @()

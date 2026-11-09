@@ -196,6 +196,17 @@
     <label class="f" for="fType">Action</label>
     <select id="fType"></select>
     <div id="fields"></div>
+    <div id="pressBlock">
+      <div id="singleBlock">
+        <label class="f" for="fSingle">Appui simple</label>
+        <select id="fSingle">
+          <option value="front">Ouvrir, ou ramener au premier plan s'il est déjà ouvert</option>
+          <option value="new">Toujours ouvrir une nouvelle fenêtre</option>
+        </select>
+      </div>
+      <label class="f" for="fDouble">Double appui (deux appuis rapides)</label>
+      <select id="fDouble"></select>
+    </div>
     <p class="warn" id="dlgErr"></p>
     <div class="dlg-actions">
       <button class="btn" value="cancel" formnovalidate>Annuler</button>
@@ -284,6 +295,73 @@
     }
   }
 
+  // ---------- Simple / double appui ----------
+  const BROWSER_EXE = /(chrome|msedge|firefox|opera|launcher|brave|vivaldi)\.exe$/i;
+  const isBrowserPath = (p) => BROWSER_EXE.test(p || '') && !(/launcher\.exe$/i.test(p) && !/opera/i.test(p));
+  const BROWSER_PROC = ['chrome', 'msedge', 'firefox', 'opera', 'brave', 'vivaldi'];
+  // Choix « automatique » : nouvel onglet pour un navigateur, rien pour le reste
+  function autoDouble(a) {
+    if (!a) return 'none';
+    if (a.type === 'app' && isBrowserPath(a.path)) return 'newtab';
+    if (a.type === 'window' && [].concat(a.process).some((p) => BROWSER_PROC.includes(String(p).toLowerCase()))) return 'newtab';
+    if (a.type === 'tab') return 'newtab';
+    if (a.type === 'window' && a.secondClick) return 'new';
+    if (a.type === 'open' && !/^https?:/i.test(a.target) && !/\.\w{1,5}$/.test(a.target || '')) return 'newtab'; // dossier
+    return 'none';
+  }
+  function doubleChoice(b) {
+    if (b.double === undefined) return 'auto';
+    if (b.double === null) return 'none';
+    if (b.double.type === 'newtab') return 'newtab';
+    if (b.double.newInstance || b.double.newWindow) return 'new';
+    return 'keep';
+  }
+  const DOUBLE_LABEL = { newtab: 'nouvel onglet', new: 'nouvelle fenêtre', none: '', keep: 'action personnalisée' };
+  function describeDouble(b) {
+    const c = doubleChoice(b);
+    const eff = c === 'auto' ? autoDouble(b.action) : c;
+    return DOUBLE_LABEL[eff] ? ' · double appui : ' + DOUBLE_LABEL[eff] : '';
+  }
+  // Choix proposés selon le type d'action
+  const DOUBLE_CHOICES = {
+    program: ['auto', 'none', 'newtab', 'new'], file: ['auto', 'none', 'newtab', 'new'], web: ['auto', 'none', 'new'],
+    window: ['auto', 'none', 'newtab'], tab: ['auto', 'none'],
+  };
+  function renderPress(kind, item) {
+    const choices = DOUBLE_CHOICES[kind];
+    $('pressBlock').hidden = editing.kind !== 'button' || !choices;
+    $('singleBlock').hidden = !['program', 'file'].includes(kind);
+    $('fSingle').value = item?.action?.newInstance ? 'new' : 'front';
+    if (!choices) return;
+    const names = {
+      auto: 'Automatique (nouvel onglet pour un navigateur ou un dossier, sinon rien)', none: 'Rien (comme un appui simple)',
+      newtab: kind === 'file' ? 'Nouvel onglet sur ce dossier' : 'Nouvel onglet (navigateur)', new: kind === 'web' ? 'Ouvrir le site dans une nouvelle fenêtre' : 'Ouvrir une nouvelle fenêtre',
+      keep: 'Action actuelle (définie dans config.json)',
+    };
+    const current = item ? doubleChoice(item) : 'auto';
+    const list = choices.includes(current) ? choices : [...choices, current];
+    $('fDouble').replaceChildren(...list.map((c) => new Option(names[c], c)));
+    $('fDouble').value = current;
+  }
+  // Traduit les choix en config : action.newInstance et button.double
+  function applyPress(item, kind) {
+    if (['program', 'file'].includes(kind)) {
+      if ($('fSingle').value === 'new') item.action.newInstance = true; else delete item.action.newInstance;
+    }
+    if (!DOUBLE_CHOICES[kind]) { delete item.double; return; }
+    const c = $('fDouble').value, a = item.action;
+    if (c === 'keep') return;
+    if (c === 'auto') delete item.double;
+    else if (c === 'none') item.double = null;
+    else if (c === 'newtab') item.double = a.type === 'window' ? { type: 'newtab', process: [].concat(a.process)[0] }
+      : kind === 'file' ? { type: 'newtab', folder: a.target } : { type: 'newtab', path: a.path };
+    else if (c === 'new') {
+      if (kind === 'program') item.double = { type: 'app', path: a.path, ...(a.args ? { args: a.args } : {}), newInstance: true };
+      else if (kind === 'web') item.double = { type: 'open', target: a.target, newWindow: true };
+      else item.double = { type: 'open', target: a.target, newInstance: true };
+    }
+  }
+
   function row(icon, title, sub, acts, color) {
     const el = document.createElement('div');
     el.className = 'row';
@@ -303,7 +381,7 @@
 
   function renderButtons() {
     const list = cfg.buttons;
-    $('btnList').replaceChildren(...list.map((b, i) => row(iconHtml(b.icon), b.label, describe(b.action), [
+    $('btnList').replaceChildren(...list.map((b, i) => row(iconHtml(b.icon), b.label, describe(b.action) + describeDouble(b), [
       ['Modifier', () => editItem('button', i)],
       ['↑', () => { move(list, i, -1); renderButtons(); changed(); }, '', i === 0],
       ['↓', () => { move(list, i, 1); renderButtons(); changed(); }, '', i === list.length - 1],
@@ -421,7 +499,7 @@
   // Champs de chaque type d'action : [clé, libellé, aide]
   const FIELDS = {
     web: [['target', 'Adresse du site', 'https://www.youtube.com']],
-    program: [['path', 'Chemin du programme', 'C:\\Program Files\\Mozilla Firefox\\firefox.exe'], ['args', 'Arguments (facultatif)', '']],
+    program: [['path', 'Chemin du programme', 'C:\\Program Files\\Mozilla Firefox\\firefox.exe'], ['args', 'Arguments (facultatif)', ''], ['screen', 'Écran', '']],
     file: [['target', 'Chemin du fichier ou dossier', 'C:\\Users\\Moi\\Documents']],
     keys: [['keys', 'Raccourci (clique puis appuie sur les touches)', 'ctrl+shift+esc']],
     volume: [['op', 'Action', ''], ['step', 'Pas en %', '2']],
@@ -439,7 +517,7 @@
       const b = document.createElement('button');
       b.type = 'button'; b.title = n; b.innerHTML = iconSvg(n);
       b.setAttribute('aria-pressed', String(n === selected));
-      b.addEventListener('click', () => { editing.icon = n; $('fIconText').value = ''; renderIcons(n); });
+      b.addEventListener('click', () => { editing.icon = n; editing.iconPicked = true; $('fIconText').value = ''; renderIcons(n); });
       return b;
     }));
   }
@@ -459,7 +537,7 @@
         input.value = a?.op || 'up';
       } else if (key === 'screen') {
         input = document.createElement('select');
-        input.append(new Option('Le dernier écran utilisé', 'same'), new Option('L\'écran principal', 'primary'), new Option('Le 2e écran', 'secondary'));
+        input.append(new Option('Là où il était', 'same'), new Option('Écran principal, en grand', 'primary'), new Option('2e écran, en grand', 'secondary'));
         input.value = a?.screen || 'same';
       } else {
         input = document.createElement('input');
@@ -485,6 +563,7 @@
         }
       }
       input.dataset.key = key;
+      if (['target', 'path', 'url'].includes(key)) input.addEventListener('input', () => autoType(input.value));
       l.append(input);
       $('fields').append(l);
     }
@@ -510,18 +589,69 @@
     if (kindNow === 'advanced') $('fType').add(new Option('Action avancée', 'advanced'));
     $('fType').value = kind === 'toggle' ? 'keys' : kindNow;
     renderFields($('fType').value, item?.action);
+    renderPress($('fType').value, item);
     $('dlgErr').textContent = '';
     $('dlg').showModal();
   }
-  $('fType').addEventListener('change', () => renderFields($('fType').value, null));
-  $('fIconText').addEventListener('input', () => { if ($('fIconText').value) { editing.icon = $('fIconText').value; renderIcons(null); } });
+  $('fType').addEventListener('change', () => { renderFields($('fType').value, null); renderPress($('fType').value, null); autoIcon(); });
+
+  // ---------- Détection automatique du type ----------
+  // D'après ce qui est collé : site, programme (.exe) ou fichier/dossier
+  function guessFromText(t) {
+    t = t.trim().replace(/^"|"$/g, '');
+    if (/^https?:\/\/|^www\./i.test(t)) return { kind: 'web', action: { type: 'open', target: t } };
+    if (/^([a-z]:\\|\\\\|%)/i.test(t)) return /\.exe$/i.test(t) ? { kind: 'program', action: { type: 'app', path: t } } : { kind: 'file', action: { type: 'open', target: t } };
+    return null;
+  }
+  // D'après le nom : « Monter le son », « Couper le son », « Verrouiller »…
+  function guessFromLabel(t) {
+    t = t.toLowerCase();
+    if (/verrouill/.test(t)) return { kind: 'lock', action: { type: 'lock' } };
+    if (/(couper|coupe|muet|mute)/.test(t)) return { kind: 'volume', action: { type: 'volume', op: 'mute' } };
+    if (/(son|volume)/.test(t)) {
+      if (/(baiss|diminu|moins|-)/.test(t)) return { kind: 'volume', action: { type: 'volume', op: 'down' } };
+      if (/(mont|augment|plus|\+)/.test(t)) return { kind: 'volume', action: { type: 'volume', op: 'up' } };
+    }
+    return null;
+  }
+  function switchKind(g) {
+    if (!g || editing.kind !== 'button') return;
+    if (g.kind === $('fType').value && g.kind !== 'volume') { autoIcon(); return; }
+    const typing = $('fields').contains(document.activeElement);
+    $('fType').value = g.kind;
+    renderFields(g.kind, g.action);
+    renderPress(g.kind, { action: g.action });
+    autoIcon();
+    const back = $('fields').querySelector('[data-key="target"],[data-key="path"]');
+    if (back && typing) { back.focus(); back.setSelectionRange(back.value.length, back.value.length); }
+  }
+  // Seulement entre site / programme / fichier (une adresse dans « Onglet du navigateur » reste un onglet)
+  const autoType = (t) => { if (['web', 'program', 'file'].includes($('fType').value)) switchKind(guessFromText(t)); };
+  // Icône automatique pour un nouveau bouton, tant qu'on n'en a pas choisi une
+  const KIND_ICON = { web: 'globe', file: 'folder', program: 'terminal', lock: 'lock', keys: 'activity', window: 'activity', tab: 'globe', store: 'gamepad' };
+  function autoIcon() {
+    if (!editing || editing.kind !== 'button' || editing.index !== null || editing.iconPicked) return;
+    const kind = $('fType').value;
+    let icon = KIND_ICON[kind];
+    if (kind === 'volume') icon = { up: 'volume-up', down: 'volume-down', mute: 'volume-x' }[$('fields').querySelector('[data-key="op"]')?.value];
+    if (!icon) return;
+    editing.icon = icon; $('fIconText').value = ''; renderIcons(icon);
+  }
+  // Le nom ne choisit le type que pour un nouveau bouton pas encore rempli
+  $('fLabel').addEventListener('input', () => {
+    const k = $('fType').value, main = $('fields').querySelector('[data-key="target"],[data-key="path"]');
+    if (editing?.index === null && (['volume', 'lock'].includes(k) || (k === 'web' && !main?.value.trim()))) switchKind(guessFromLabel($('fLabel').value));
+  });
+  $('fields').addEventListener('change', (e) => { if (e.target.dataset.key === 'op') autoIcon(); });
+  $('fIconText').addEventListener('input', () => { if ($('fIconText').value) { editing.icon = $('fIconText').value; editing.iconPicked = true; renderIcons(null); } });
 
   function buildAction(kind, old) {
     const v = Object.fromEntries([...$('fields').querySelectorAll('[data-key]')].map((el) => [el.dataset.key, el.value.trim()]));
     switch (kind) {
       case 'web': return { type: 'open', target: /^https?:\/\//i.test(v.target) ? v.target : 'https://' + v.target };
       case 'file': return { type: 'open', target: v.target };
-      case 'program': return { type: 'app', path: v.path.replace(/^"|"$/g, ''), ...(v.args ? { args: v.args.match(/"[^"]*"|\S+/g).map((s) => s.replace(/^"|"$/g, '')) } : {}) };
+      case 'program': return { type: 'app', path: v.path.replace(/^"|"$/g, ''), ...(v.args ? { args: v.args.match(/"[^"]*"|\S+/g).map((s) => s.replace(/^"|"$/g, '')) } : {}),
+        ...(v.screen && v.screen !== 'same' ? { screen: v.screen } : {}) };
       case 'store': return { type: 'app', appId: v.appId };
       case 'keys': return { type: 'keys', keys: v.keys };
       case 'volume': return { type: 'volume', op: v.op, ...(v.op !== 'mute' ? { step: Number(v.step) || 2, bigStep: old?.bigStep || 10 } : {}) };
@@ -551,6 +681,7 @@
       item.id = id;
     }
     item.action = buildAction(kind, old?.action);
+    if (editing.kind === 'button') applyPress(item, kind);
     if (editing.kind === 'button') {
       item.icon = editing.icon || '';
       if ($('fColorOn').checked) item.color = $('fColor').value; else delete item.color;

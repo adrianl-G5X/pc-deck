@@ -38,6 +38,11 @@
     font: inherit; font-weight: 600; padding: 10px 16px; cursor: pointer; color: var(--text);
     background: var(--key); border: 0; border-radius: 8px; border-top: 1px solid var(--key-top); border-bottom: 3px solid var(--key-bottom);
   }
+  .qrs { display: flex; gap: 14px; flex-wrap: wrap; }
+  .qrs small { display: block; text-align: center; }
+  .qr.small { width: 150px; height: 150px; margin: 14px 0 4px; }
+  .code.small { font-size: 34px; letter-spacing: 8px; }
+  .ok { color: var(--good); }
   .done { display: none; margin: 0 0 18px; padding: 14px 18px; border-radius: 10px; background: #1f2a20; color: var(--good); font-size: 17px; }
   .done.show { display: block; }
   .warn { color: var(--amber); }
@@ -59,6 +64,7 @@
     <button role="tab" data-tab="android" aria-selected="true">Tablette Android</button>
     <button role="tab" data-tab="ios" aria-selected="false">iPhone ou iPad</button>
     <button role="tab" data-tab="pc" aria-selected="false">Autre ordinateur</button>
+    <button role="tab" data-tab="remote" aria-selected="false">Hors de chez toi</button>
   </div>
 
   <!-- Tablette Android -->
@@ -108,6 +114,33 @@
     </div>
   </section>
 
+  <!-- Hors de chez soi (Tailscale) -->
+  <section class="grid" data-panel="remote" hidden>
+    <div class="step">
+      <h2><span class="n">1</span>Ce PC</h2>
+      <p id="tsOn" hidden class="ok">✓ Accès hors de chez toi activé sur ce PC (<span id="tsIp"></span>).</p>
+      <p id="tsOff" hidden>Pas encore activé. Clic droit sur l'icône PC Deck près de l'horloge → <b>Accès hors de chez toi</b> : Tailscale (gratuit) s'installe, puis connecte-toi avec ton compte Google, Microsoft ou Apple.</p>
+    </div>
+    <div class="step">
+      <h2><span class="n">2</span>Installer Tailscale sur l'appareil</h2>
+      <p>Scanne avec l'appareil photo, installe, puis connecte-toi avec <b>le même compte</b> que sur le PC.</p>
+      <div class="qrs">
+        <div><div class="qr small" id="qrPlay"></div><small>Android</small></div>
+        <div><div class="qr small" id="qrAppStore"></div><small>iPhone / iPad</small></div>
+      </div>
+    </div>
+    <div class="step" id="tsPair" hidden>
+      <h2><span class="n">3</span>Se connecter à PC Deck</h2>
+      <p>Une fois Tailscale actif sur l'appareil, scanne ce code : ça marche depuis n'importe où.</p>
+      <div class="qrs">
+        <div><div class="qr small" id="qrTsApp"></div><small>Android</small></div>
+        <div><div class="qr small" id="qrTsWeb"></div><small>iPhone / iPad</small></div>
+      </div>
+      <div class="code small" data-code>······</div>
+      <div class="timer" data-timer></div>
+    </div>
+  </section>
+
   <div class="actions"><button type="button" id="newCode">Nouveau code</button></div>
 </main>
 
@@ -146,6 +179,18 @@
         $('qrApp').innerHTML = $('qrWeb').innerHTML = '';
       }
     }
+    // Hors de chez soi : liens officiels de Tailscale (Play Store / App Store)
+    drawQr($('qrPlay'), 'https://play.google.com/store/apps/details?id=com.tailscale.ipn');
+    drawQr($('qrAppStore'), 'https://apps.apple.com/app/tailscale/id1470499037');
+    const ts = info.tailscale ? `${info.tailscale}:${info.port}` : null;
+    $('tsOn').hidden = !ts; $('tsOff').hidden = !!ts; $('tsPair').hidden = !ts;
+    if (ts) {
+      $('tsIp').textContent = info.tailscale;
+      if (code) {
+        drawQr($('qrTsApp'), `pcdeck://pair?h=${encodeURIComponent(ts)}&c=${code}`);
+        drawQr($('qrTsWeb'), `http://${ts}/?pair=${code}`);
+      } else $('qrTsApp').innerHTML = $('qrTsWeb').innerHTML = '';
+    }
     if (info.paired.length > shownPaired) {
       shownPaired = info.paired.length;
       $('done').textContent = `✓ « ${info.paired[info.paired.length - 1]} » est connecté. Pour un autre appareil, touche « Nouveau code ».`;
@@ -166,6 +211,7 @@
       for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== b.dataset.tab;
     });
   }
+  if (location.hash === '#remote') document.querySelector('[data-tab="remote"]').click();
   load('POST').catch(() => { document.body.textContent = 'PC Deck ne répond pas.'; });
   setInterval(() => load('GET').catch(() => {}), 2000);
 </script>

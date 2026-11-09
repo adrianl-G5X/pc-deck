@@ -50,6 +50,25 @@ Clic droit sur l'icône PC Deck → **Paramètres** : ajouter, modifier, déplac
 des boutons (nom, icône, couleur, action), choisir le thème clair ou sombre, les infos
 affichées… Clique sur **Enregistrer** : la tablette change tout de suite.
 
+**Simple et double appui** : un appui ouvre le programme, ou le ramène devant s'il est déjà
+ouvert (jamais en double). Deux appuis rapides sur un bouton de navigateur ou de dossier ouvrent
+un nouvel onglet. En créant un bouton, colle simplement le lien, le programme ou le dossier :
+le type et l'icône se choisissent tout seuls. Dans Paramètres → Modifier un bouton, tu peux changer ce que font l'appui simple et le
+double appui.
+
+## 3 bis. Utiliser PC Deck hors de chez toi
+
+Pendant l'installation, laisse cochée la case **« Utiliser PC Deck hors de chez moi »** : Tailscale
+(gratuit, réseau privé chiffré entre TES appareils) s'installe tout seul. Une page s'ouvre :
+**connecte-toi** avec ton compte Google, Microsoft ou Apple (une seule fois).
+
+Ensuite, sur la page **Connecter un appareil**, onglet **Hors de chez toi** : scanne le QR code
+pour installer **Tailscale** sur la tablette ou le téléphone, connecte-toi avec **le même compte**,
+puis scanne le dernier QR code. Ça marche alors de n'importe où.
+
+Le PC doit rester **allumé**, avec PC Deck lancé. Case oubliée ? Clic droit sur l'icône PC Deck →
+**Accès hors de chez toi**.
+
 ## 4. Mises à jour
 
 - **PC** : une notification annonce la nouvelle version. Clic droit sur l'icône PC Deck →
