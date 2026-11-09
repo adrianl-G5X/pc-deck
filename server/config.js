@@ -20,10 +20,20 @@ function checkAction(action, where, allowMacro = true) {
       if (typeof a.target !== 'string' || !a.target) fail(where, '"target" (lien ou fichier) manquant');
       if (a.newWindow !== undefined && typeof a.newWindow !== 'boolean')
         fail(where, '"newWindow" doit valoir true ou false');
+      if (a.newInstance !== undefined && typeof a.newInstance !== 'boolean') fail(where, '"newInstance" doit valoir true ou false');
+      break;
+    case 'newtab':
+      if (typeof a.folder === 'string' && a.folder) break; // nouvel onglet de l'Explorateur sur ce dossier
+      // Nouvel onglet dans un navigateur : "path" (son .exe, pour le lancer s'il est fermé) ou "process"
+      if (typeof a.path !== 'string' && !(typeof a.process === 'string' && /^[\w.-]+$/.test(a.process)))
+        fail(where, 'il faut "path" (chemin du navigateur) ou "process" (ex. "chrome")');
       break;
     case 'app':
       if (typeof a.path !== 'string' && typeof a.appId !== 'string')
         fail(where, 'il faut "path" (chemin du .exe) ou "appId" (application du Store)');
+      if (a.newInstance !== undefined && typeof a.newInstance !== 'boolean') fail(where, '"newInstance" doit valoir true ou false');
+      if (a.screen !== undefined && !['same', 'primary', 'secondary'].includes(a.screen))
+        fail(where, '"screen" doit être "same", "primary" ou "secondary"');
       if (a.args !== undefined && !(Array.isArray(a.args) && a.args.every((x) => typeof x === 'string')))
         fail(where, '"args" doit être une liste de textes');
       break;
@@ -87,7 +97,7 @@ function checkAction(action, where, allowMacro = true) {
       a.steps = a.steps.map((step, i) => checkAction(step, `${where}, étape ${i + 1}`, false));
       break;
     default:
-      fail(where, `type d'action inconnu "${a.type}" (possibles : open, app, keys, volume, window, tab, lock, macro)`);
+      fail(where, `type d'action inconnu "${a.type}" (possibles : open, app, newtab, keys, volume, window, tab, lock, macro)`);
   }
   return a;
 }
@@ -126,6 +136,8 @@ function parseConfig(raw) {
       icon: String(b.icon ?? ''),
       color: b.color || null,
       action: checkAction(b.action, where),
+      // Double appui : action choisie, null = rien, absent = automatique (nouvel onglet pour un navigateur)
+      double: b.double === undefined || b.double === null ? b.double : checkAction(b.double, `${where}, double appui`),
     };
   });
 

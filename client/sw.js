@@ -1,9 +1,9 @@
-﻿// Service worker : garde une copie de l'interface sur la tablette.
+// Service worker : garde une copie de l'interface sur la tablette.
 // - PC joignable : on prend toujours la version la plus récente (et on met la copie à jour).
 // - PC injoignable : on affiche la copie, et l'appli attend la reconnexion.
 // Les données en direct (WebSocket /ws, /api) ne passent jamais par ici.
 
-const CACHE = 'pcdeck-v25';
+const CACHE = 'pcdeck-v29';
 const SHELL = [
   '/',
   '/index.html',

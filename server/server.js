@@ -7,7 +7,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { startStats, getStats } = require('./stats');
 const { loadConfig, parseConfig, watchConfig, CONFIG_PATH } = require('./config');
-const { runAction } = require('./actions');
+const { runAction, doubleActionFor } = require('./actions');
 const { startWorker, stopWorker, changeSystemVolume, changeAppVolume } = require('./keys');
 const auth = require('./auth');
 const { startUsb } = require('./usb');
@@ -21,7 +21,18 @@ const updates = require('./update');
 // Appli Android fournie par ce PC : même numéro que PC Deck (1.2.3 -> 10203).
 // MIN_APP : plus ancienne appli tablette encore compatible avec ce PC.
 const MIN_APP_VERSION_CODE = 300;
-const appVersionCode = () => { const [a, b, c] = VERSION.split('-')[0].split('.').map(Number); return a * 10000 + b * 100 + c; };
+// Numéro de l'APK réellement fourni (écrit par android\build.ps1 à côté du fichier) ;
+// sans lui, on ne propose pas de mise à jour (évite d'annoncer une version qu'on n'a pas).
+function apkInfo() {
+  const apk = apkPath();
+  if (!apk) return null;
+  try {
+    const info = JSON.parse(fs.readFileSync(apk + '.json', 'utf8').replace(/^\uFEFF/, ''));
+    return Number.isInteger(info.versionCode) ? { versionCode: info.versionCode, versionName: String(info.versionName) } : null;
+  } catch {
+    return null;
+  }
+}
 const { VERSION, PROTOCOL } = require('./version');
 
 const CLIENT_DIR = path.join(__dirname, '..', 'client');
@@ -131,6 +142,8 @@ function serveConnect(req, res, pathname) {
     port: PORT,
     hosts: HOST === '0.0.0.0' ? lanAddresses().map((a) => a.address) : [],
     apk: !!apkPath(),
+    // Adresse Tailscale de ce PC (100.64.0.0/10) quand Tailscale est connecté, sinon null
+    tailscale: lanAddresses().map((a) => a.address).find((ip) => /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip)) || null,
   }));
 }
 
@@ -263,8 +276,6 @@ server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
 });
 
-const SECOND_CLICK_MS = 5000;
-const lastPress = new Map(); // id du bouton -> heure du dernier appui
 
 function send(ws, message) {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(message));
@@ -272,14 +283,19 @@ function send(ws, message) {
 
 function publicButtons() {
   // On n'envoie jamais le détail des actions à la tablette.
-  return config.buttons.map(({ id, label, icon, color, action }) => ({
+  return config.buttons.map((button) => {
+    const { id, label, icon, color, action } = button;
+    return {
     id,
     label,
     icon,
     color,
+    // La tablette n'attend un éventuel 2e appui (300 ms) que pour ces boutons
+    double: !!doubleActionFor(button),
     // Pour les boutons de son : "up" / "down" / "mute" et leurs deux pas
     volume: action.type === 'volume' ? { op: action.op, step: action.step, bigStep: action.bigStep } : null,
-  }));
+    };
+  });
 }
 
 // ---------- Réglages des boutons de son ----------
@@ -434,13 +450,11 @@ wss.on('connection', (ws, req) => {
         send(ws, { type: 'result', id: String(msg.id).slice(0, 60), ok: false, error: 'Bouton inconnu' });
         return;
       }
-      // Deuxième appui sur le même bouton en moins de 5 s ? (utilisé par "secondClick")
-      const now = Date.now();
-      const repeat = now - (lastPress.get(button.id) || 0) < SECOND_CLICK_MS;
-      lastPress.set(button.id, repeat ? 0 : now); // un 3e appui recommence le cycle
+      // Simple ou double appui : la tablette a déjà fait la différence et n'envoie qu'UNE commande
+      const dbl = msg.press === 'double' ? doubleActionFor(button) : null;
       try {
-        const context = { audioMode: audioState().mode, audioApp: config.audioApp, bigStep: state.bigStep, repeat };
-        const out = await runAction(button.action, context);
+        const context = { audioMode: audioState().mode, audioApp: config.audioApp, bigStep: state.bigStep, repeat: !!dbl };
+        const out = await runAction(dbl || button.action, context);
         const message = typeof out === 'string' ? out : out?.message || null;
         console.log(`Action : ${button.label}${message ? ` (${message})` : ''}`);
         send(ws, { type: 'result', id: button.id, ok: true, message, volume: out?.volume || null });
@@ -479,7 +493,7 @@ function hello() {
     toggles: publicToggles(),
     remote: config.remote,
     display: config.display,
-    app: apkPath() ? { versionCode: appVersionCode(), versionName: VERSION, minVersionCode: MIN_APP_VERSION_CODE } : null,
+    app: apkInfo() ? { ...apkInfo(), minVersionCode: MIN_APP_VERSION_CODE } : null,
     stats: getStats(),
     audio: audioState(),
     // Adresses Wi-Fi du PC : la tablette les retient pour revenir au Wi-Fi

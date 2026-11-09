@@ -94,6 +94,22 @@ async function showWindow(processes, where, title = '') {
   return reply === 'ok';
 }
 
+// Tape un texte dans la fenêtre au premier plan (accents compris)
+function typeText(text) {
+  return command(`text ${Buffer.from(String(text), 'utf8').toString('base64')}`);
+}
+
+// Programme de la fenêtre au premier plan (ex. "firefox")
+async function foregroundProcess() {
+  return String(await command('fg')).replace(/^ok:/, '').trim().toLowerCase();
+}
+
+// Fenêtre de l'Explorateur déjà ouverte sur ce dossier : mise au premier plan (true), sinon false
+async function focusFolder(folder) {
+  const clean = String(folder).replace(/[\r\n]+/g, ' ').trim();
+  return (await command(`folder ${clean}`)) === 'ok';
+}
+
 // Indicateur de volume en bas au milieu de l'écran principal du PC
 function showOsd(label, level, muted) {
   const clean = String(label).replace(/[\r\n]+/g, ' ').trim();
@@ -104,4 +120,4 @@ function stopWorker() {
   worker?.kill();
 }
 
-module.exports = { parseKeys, pressKeys, changeAppVolume, changeSystemVolume, showWindow, showOsd, startWorker, stopWorker };
+module.exports = { parseKeys, pressKeys, changeAppVolume, changeSystemVolume, showWindow, focusFolder, foregroundProcess, typeText, showOsd, startWorker, stopWorker };

@@ -30,6 +30,7 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Créer une icône sur le Bureau"; Flags: unchecked
+Name: "tailscale"; Description: "Utiliser PC Deck hors de chez moi (installe Tailscale, gratuit, et ouvre sa page de connexion)"
 
 [Files]
 Source: "{#StageDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -54,6 +55,9 @@ Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""P
 Filename: "{app}\pawnio\PawnIO_setup.exe"; Parameters: "-install -silent"; Check: NeedPawnIO; Flags: waituntilterminated runhidden; StatusMsg: "Pilote des capteurs (PawnIO)..."
 ; LibreHardwareMonitor : lancé à chaque ouverture de session avec les droits nécessaires, sans demande
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\register-lhm-task.ps1"" -App ""{app}"" -User ""{username}"""; Flags: runhidden; StatusMsg: "Capteurs de température..."
+; Accès hors de chez soi : Tailscale (programme officiel, signature vérifiée), puis page de connexion
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\setup-tailscale.ps1"" -Step install"; Flags: runhidden waituntilterminated; Tasks: tailscale; StatusMsg: "Installation de Tailscale (accès hors de chez vous)..."
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\setup-tailscale.ps1"" -Step login"; Flags: runhidden nowait runasoriginaluser; Tasks: tailscale; Check: not WizardSilent
 ; Lancement de PC Deck (avec les droits de l'utilisateur, pas ceux de l'installeur)
 Filename: "{app}\PC Deck.exe"; WorkingDir: "{app}"; Description: "Lancer PC Deck maintenant"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: HasTrayExe
 Filename: "{app}\PC Deck.exe"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: WizardSilent and HasTrayExe

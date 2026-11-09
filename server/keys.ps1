@@ -94,6 +94,19 @@ namespace PcDeck {
     [DllImport("user32.dll")]
     static extern uint MapVirtualKey(uint code, uint mapType);
 
+    // Taper un texte (accents compris) : touches "Unicode" de SendInput
+    [StructLayout(LayoutKind.Sequential)] struct KEYBDINPUT { public ushort vk, scan; public uint flags, time; public IntPtr extra; }
+    [StructLayout(LayoutKind.Explicit, Size = 40)] struct INPUT { [FieldOffset(0)] public uint type; [FieldOffset(8)] public KEYBDINPUT ki; }
+    [DllImport("user32.dll")] static extern uint SendInput(uint n, INPUT[] inputs, int size);
+    public static void Type(string text) {
+      foreach (char ch in text) {
+        INPUT[] inp = new INPUT[2];
+        for (int k = 0; k < 2; k++) { inp[k].type = 1; inp[k].ki.scan = ch; inp[k].ki.flags = 0x0004u | (k == 1 ? 0x0002u : 0u); }
+        SendInput(2, inp, 40);
+        System.Threading.Thread.Sleep(5);
+      }
+    }
+
     // Appui "realiste" : vrai code physique de la touche (scan code) et petites pauses,
     // sinon certains logiciels (ex. raccourcis globaux de Discord) ne voient rien.
     public static void Press(int[] codes) {
@@ -129,6 +142,7 @@ namespace PcDeck {
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr hwnd);
     [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr hwnd, uint cmd);
     [DllImport("user32.dll")] static extern int GetWindowTextLength(IntPtr hwnd);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string cls, string title);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr hwnd, System.Text.StringBuilder text, int max);
     [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int cmd);
@@ -165,7 +179,7 @@ namespace PcDeck {
         GetWindowThreadProcessId(h, out pid);
         string name;
         try { name = Process.GetProcessById((int)pid).ProcessName.ToLowerInvariant(); } catch { return true; }
-        if (Array.IndexOf(names, name) < 0) return true;
+        if (Array.IndexOf(names, "*") < 0 && Array.IndexOf(names, name) < 0) return true;
         if (!string.IsNullOrEmpty(title)) {
           System.Text.StringBuilder sb = new System.Text.StringBuilder(512);
           GetWindowText(h, sb, 512);
@@ -192,24 +206,49 @@ namespace PcDeck {
       return result;
     }
 
-    static void Foreground(IntPtr h) {
-      uint dummy;
-      uint fg = GetWindowThreadProcessId(GetForegroundWindow(), out dummy);
-      uint me = GetCurrentThreadId();
-      bool attached = fg != me && AttachThreadInput(me, fg, true);
-      BringWindowToTop(h);
-      SetForegroundWindow(h);
-      if (attached) AttachThreadInput(me, fg, false);
-      // Windows refuse parfois qu'un programme en arriere-plan passe une fenetre devant :
-      // on utilise alors le meme mecanisme qu'Alt+Tab.
-      if (GetForegroundWindow() != h) SwitchToThisWindow(h, true);
+    // Nom du programme de la fenetre au premier plan (ex. "firefox")
+    public static string ForegroundName() {
+      uint pid;
+      GetWindowThreadProcessId(GetForegroundWindow(), out pid);
+      try { return Process.GetProcessById((int)pid).ProcessName.ToLowerInvariant(); } catch { return ""; }
     }
 
-    // where : "same" (dernier ecran utilise), "secondary" ou "primary"
+    // Premier plan sans changer la taille : restauree seulement si elle est reduite
+    public static void FocusHandle(IntPtr h) {
+      if (IsIconic(h)) ShowWindow(h, 9);             // SW_RESTORE
+      Foreground(h);
+    }
+
+    // Windows refuse parfois qu'un programme en arriere-plan passe une fenetre devant.
+    // On verifie et on reessaie (3 fois) : une touche "neutre" (0x88, sans effet dans les
+    // programmes) donne a PC Deck le droit de changer de fenetre, puis le mecanisme d'Alt+Tab.
+    static void Foreground(IntPtr h) {
+      for (int i = 0; i < 3 && GetForegroundWindow() != h; i++) {
+        if (i > 0) {
+          Keyboard.keybd_event(0x88, 0, 0, UIntPtr.Zero);
+          Keyboard.keybd_event(0x88, 0, 2, UIntPtr.Zero);
+          System.Threading.Thread.Sleep(50);
+        }
+        uint dummy;
+        uint fg = GetWindowThreadProcessId(GetForegroundWindow(), out dummy);
+        uint me = GetCurrentThreadId();
+        bool attached = fg != me && AttachThreadInput(me, fg, true);
+        BringWindowToTop(h);
+        SetForegroundWindow(h);
+        if (attached) AttachThreadInput(me, fg, false);
+        if (GetForegroundWindow() != h) SwitchToThisWindow(h, true);
+        System.Threading.Thread.Sleep(80);
+      }
+    }
+
+    // where : "same" (dernier ecran utilise), "secondary", "primary"  -> fenetre agrandie
+    //         "front" -> juste au premier plan (restauree si elle est reduite, taille inchangee)
+    // names : noms de programmes, ou "*" pour n'importe quel programme (recherche par titre)
     // Repond "ok", "notfound" (programme sans fenetre ouverte)
     public static string Show(string[] names, string where, string title) {
       IntPtr h = Find(names, title);
       if (h == IntPtr.Zero) return "notfound";
+      if (where == "front") { FocusHandle(h); return "ok"; }
 
       if (where == "secondary" || where == "primary") {
         MONITORINFO target, primary;
@@ -499,6 +538,27 @@ while ($true) {
                 [PcDeck.Osd]::Show($label, [int]$parts[1], $parts[2] -eq '1')
                 $reply = 'ok'
             }
+            'folder' {
+                # folder <chemin, espaces permis> : fenetre de l'Explorateur deja ouverte sur ce dossier ?
+                $target = ($parts[1..($parts.Count - 1)] -join ' ').TrimEnd('\')
+                $reply = 'notfound'
+                foreach ($w in (New-Object -ComObject Shell.Application).Windows()) {
+                    $p = $null
+                    try { $p = $w.Document.Folder.Self.Path } catch { }
+                    if ($p -and ($target -eq '*' -or $p.TrimEnd('\') -ieq $target)) { [PcDeck.Windows]::FocusHandle([IntPtr]$w.HWND); $reply = 'ok'; break }
+                }
+                if ($reply -eq 'notfound' -and $target -eq '*') {
+                    # Une fenetre sur "Accueil" n'est pas listee ci-dessus : on la cherche par son type
+                    $h = [PcDeck.Windows]::FindWindow('CabinetWClass', $null)
+                    if ($h -ne [IntPtr]::Zero) { [PcDeck.Windows]::FocusHandle($h); $reply = 'ok' }
+                }
+            }
+            'text' {
+                # text <texte en base64, UTF-8>
+                [PcDeck.Keyboard]::Type([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($parts[1])))
+                $reply = 'ok'
+            }
+            'fg' { $reply = 'ok:' + [PcDeck.Windows]::ForegroundName() }
             'sysvol' {
                 $reply = [PcDeck.AppVolume]::ChangeSystem($parts[1], [int]$parts[2])
             }

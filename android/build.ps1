@@ -77,6 +77,8 @@ if (-not $env:PCDECK_KEYSTORE -and -not (Test-Path $ks)) {
 $pw = if ($env:PCDECK_KEYSTORE_PASSWORD) { $env:PCDECK_KEYSTORE_PASSWORD } else { [IO.File]::ReadAllText($pwFile).Trim() }
 $apk = Join-Path $here 'PC-Deck.apk'
 Run "$bt\apksigner.bat" @('sign', '--ks', $ks, '--ks-pass', "pass:$pw", '--out', $apk, "$out\aligned.apk")
+# Numéro réel de cet APK, lu par le PC pour proposer (ou non) la mise à jour aux tablettes
+[IO.File]::WriteAllText("$apk.json", "{`"versionCode`":$versionCode,`"versionName`":`"$version`"}", (New-Object Text.UTF8Encoding $false))
 Write-Host "OK : $apk (version $version, code $versionCode)"
 
 if ($Install) {

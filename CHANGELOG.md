@@ -5,6 +5,17 @@ le script de publication les range sous le bon numéro, et elles s'affichent dan
 notification de mise à jour de tes proches.
 
 ## Prochaine version
+- Un programme déjà ouvert (navigateur, appli, dossier) revient au premier plan au lieu de s'ouvrir une deuxième fois ; réduit, il est restauré.
+- Double appui sur un bouton de navigateur : nouvel onglet dans la fenêtre déjà ouverte.
+- Double appui sur un bouton de dossier : nouvel onglet de l'Explorateur sur ce dossier.
+- Paramètres : pour chaque bouton, choix de l'appui simple et du double appui.
+- Nouveau bouton : le type se règle tout seul d'après ce que tu colles (site, programme .exe, dossier) ou le nom (« Monter le son », « Verrouiller »…), avec l'icône qui va avec.
+- Accès hors de chez soi : l'installeur propose d'installer Tailscale tout seul (programme officiel, signature vérifiée) et ouvre sa page de connexion. Menu de l'icône : « Accès hors de chez toi ». La page « Connecter un appareil » a un onglet « Hors de chez toi » (QR codes de Tailscale et de connexion).
+- Double appui plus facile sur la tablette (400 ms) ; un bouton « Accueil » de l'Explorateur revient devant au lieu d'ouvrir une nouvelle fenêtre.
+- Programme : choix de l'écran (là où il était, écran principal ou 2e écran, en grand).
+- Un site web s'ouvre dans un onglet du navigateur déjà ouvert, qui revient au premier plan.
+- Températures : si LibreHardwareMonitor ne tourne pas, PC Deck le relance tout seul ; sinon le menu de l'icône propose « Températures : réparer… ».
+- Mise à jour de la tablette : le PC annonce le vrai numéro de l'appli qu'il fournit.
 
 ## 0.4.1 — 2026-11-09
 - Première version publiée automatiquement (test des mises à jour) : aucune nouveauté pour l'instant.

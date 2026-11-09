@@ -49,7 +49,7 @@ Copy-Tree (Join-Path $root 'server') (Join-Path $stage 'server') @('*.test.js')
 Copy-Tree (Join-Path $root 'client') (Join-Path $stage 'client')
 Copy-Tree (Join-Path $root 'extension') (Join-Path $stage 'extension')
 New-Item -ItemType Directory -Force (Join-Path $stage 'tools') | Out-Null
-Copy-Item (Join-Path $PSScriptRoot 'lhm-task.xml'), (Join-Path $PSScriptRoot 'register-lhm-task.ps1') (Join-Path $stage 'tools')
+Copy-Item (Join-Path $PSScriptRoot 'lhm-task.xml'), (Join-Path $PSScriptRoot 'register-lhm-task.ps1'), (Join-Path $PSScriptRoot 'setup-tailscale.ps1') (Join-Path $stage 'tools')
 if (-not $Compiled) { Copy-Item (Join-Path $root 'tools\tray.ps1'), (Join-Path $root 'tools\launch-hidden.vbs') (Join-Path $stage 'tools') }
 Copy-Item (Join-Path $root 'config.default.json'), (Join-Path $root 'templates.json'), (Join-Path $root 'package.json'), (Join-Path $root 'package-lock.json') $stage
 Push-Location $stage
@@ -98,6 +98,8 @@ $apk = Join-Path $root 'android\PC-Deck.apk'
 if (-not (Test-Path $apk)) { throw "APK introuvable : $apk (retire -SkipApk)" }
 New-Item -ItemType Directory -Force (Join-Path $stage 'tablet') | Out-Null
 Copy-Item $apk (Join-Path $stage 'tablet\PC-Deck.apk')
+if (-not (Test-Path "$apk.json")) { throw "Numéro de version de l'APK introuvable : reconstruis-le (retire -SkipApk)" }
+Copy-Item "$apk.json" (Join-Path $stage 'tablet\PC-Deck.apk.json')
 
 # ---- Licences ----
 @"
