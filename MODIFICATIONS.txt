@@ -79,6 +79,7 @@ EXTENSION DU NAVIGATEUR
   active, il manque le .xpi signe heberge sur GitHub et le remplissage de updates.json.
 
 DEPOT GITHUB
+- GUIDE-PUBLICATION.md retire de GitHub (reste sur ton PC, ajoute au .gitignore) ; lien retire du README.
 - README.md reecrit, plus simple. Anciens details techniques dans DEVELOPPEUR.md.
 - Historique reecrit : plus de "Co-Authored-By: Claude", une seule adresse d'auteur
   (ton adresse noreply GitHub), messages de commit courts avec le numero de version

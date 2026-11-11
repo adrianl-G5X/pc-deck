@@ -62,7 +62,6 @@ Le guide pas à pas, avec les écrans de Windows, est dans
 | Document | Pour qui |
 |---|---|
 | [GUIDE-UTILISATEUR.md](GUIDE-UTILISATEUR.md) | Tes proches : installer et utiliser PC Deck |
-| [GUIDE-PUBLICATION.md](GUIDE-PUBLICATION.md) | Toi : publier une nouvelle version |
 | [DEVELOPPEUR.md](DEVELOPPEUR.md) | Les détails techniques : `config.json`, types d'actions, mode USB, extension du navigateur, installeur, organisation des fichiers |
 | [CHANGELOG.md](CHANGELOG.md) | Ce qui change à chaque version |
 

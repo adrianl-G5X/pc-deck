@@ -354,7 +354,7 @@ Si le PC change d'adresse (nouvelle box), l'appli Android le retrouve d'elle-mê
 - **Mises à jour** : le PC vérifie GitHub Releases toutes les 12 h. Chaque version est signée
   (Ed25519, clé publique `server/update-key.pem`) : une version non signée par ta clé est
   ignorée. La tablette reçoit sa nouvelle appli depuis son PC.
-- **Publier** : voir [GUIDE-PUBLICATION.md](GUIDE-PUBLICATION.md). **Installer chez un proche** :
+- **Publier** : voir `GUIDE-PUBLICATION.md` (fichier gardé en local, hors de GitHub). **Installer chez un proche** :
   [GUIDE-UTILISATEUR.md](GUIDE-UTILISATEUR.md).
 - **Tests** : `npm test` (filtre d'adresses, configuration, cartes graphiques, appairage, mises à jour).
 

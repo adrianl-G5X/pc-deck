@@ -24,3 +24,5 @@ config.json
 .claude/
 .vscode/
 Thumbs.db
+
+GUIDE-PUBLICATION.md
