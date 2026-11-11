@@ -90,6 +90,10 @@ async function handle(msg) {
   return { ok: false, error: 'commande inconnue' };
 }
 
+// Firefox endort l'extension après ~30 s d'inactivité (et coupe la liaison) : un appel
+// à son API toutes les 20 s la garde éveillée. Sans effet dans Chrome / Opera / Edge.
+setInterval(() => chrome.runtime.getPlatformInfo(() => {}), 20000);
+
 // Se (re)connecte au démarrage du navigateur, à l'installation, et chaque minute au cas où
 chrome.runtime.onStartup.addListener(connect);
 chrome.runtime.onInstalled.addListener(connect);

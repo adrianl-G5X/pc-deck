@@ -90,6 +90,7 @@
       <h2><span class="n">1</span>Scanner</h2>
       <p>Scanne ce code avec l'appareil photo de l'iPhone, puis touche le lien : Safari s'ouvre et se connecte tout seul.</p>
       <div class="qr" id="qrWeb"></div>
+      <label id="iosTsRow" hidden style="display:block;margin:8px 0;color:var(--text-2)"><input type="checkbox" id="iosTs" checked> Adresse Tailscale <small>(recommandé : un seul code, à la maison comme dehors ; Tailscale doit être actif sur l'iPhone)</small></label>
       <div class="timer" data-timer></div>
     </div>
     <div class="step">
@@ -174,7 +175,9 @@
       drawQr($('qrApk'), `http://${host}/download/PC-Deck.apk`);
       if (code) {
         drawQr($('qrApp'), `pcdeck://pair?h=${encodeURIComponent(host)}&c=${code}`);
-        drawQr($('qrWeb'), `http://${host}/?pair=${code}`);
+        // iPhone / navigateur : le laissez-passer est gardé PAR adresse. Avec Tailscale, une seule adresse sert à la maison et dehors
+        const iosHost = info.tailscale && $('iosTs').checked ? `${info.tailscale}:${info.port}` : host;
+        drawQr($('qrWeb'), `http://${iosHost}/?pair=${code}`);
       } else {
         $('qrApp').innerHTML = $('qrWeb').innerHTML = '';
       }
@@ -183,6 +186,7 @@
     drawQr($('qrPlay'), 'https://play.google.com/store/apps/details?id=com.tailscale.ipn');
     drawQr($('qrAppStore'), 'https://apps.apple.com/app/tailscale/id1470499037');
     const ts = info.tailscale ? `${info.tailscale}:${info.port}` : null;
+    $('iosTsRow').hidden = !ts;
     $('tsOn').hidden = !ts; $('tsOff').hidden = !!ts; $('tsPair').hidden = !ts;
     if (ts) {
       $('tsIp').textContent = info.tailscale;
@@ -204,6 +208,7 @@
     render();
   }
 
+  $('iosTs').addEventListener('change', () => info && render());
   $('newCode').addEventListener('click', () => { $('done').classList.remove('show'); shownPaired = 0; load('POST'); });
   for (const b of document.querySelectorAll('[data-tab]')) {
     b.addEventListener('click', () => {

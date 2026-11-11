@@ -8,8 +8,27 @@ const { getNetworkApps } = require('./netmon');
 const { getProcesses } = require('./procmon');
 
 const LHM_URL = process.env.LHM_URL || 'http://127.0.0.1:8085/data.json';
-// Nom de la carte réseau à suivre (celui affiché dans LHM et dans Windows).
-const NET_ADAPTER = process.env.NET_ADAPTER || 'Wi-Fi';
+// Carte réseau à suivre : détectée toute seule (celle qui sert à aller sur Internet, câble ou Wi-Fi).
+// NET_ADAPTER (nom affiché dans Windows) force un choix.
+const NET_ADAPTER = process.env.NET_ADAPTER || '';
+let adapter = { name: NET_ADAPTER || 'Wi-Fi', kind: null };
+
+const DETECT_PS = `
+$r = @(Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object { $a = $_; $m = (Get-NetRoute -DestinationPrefix 0.0.0.0/0 -InterfaceIndex $a.InterfaceIndex -ErrorAction SilentlyContinue | Measure-Object RouteMetric -Minimum).Minimum; $i = (Get-NetIPInterface -InterfaceIndex $a.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).InterfaceMetric; [pscustomobject]@{ name = $a.Name; media = [string]$a.PhysicalMediaType; metric = $(if ($null -eq $m) { 99999 } else { $m + $i }) } } | Sort-Object metric)
+ConvertTo-Json -InputObject $r -Compress`;
+
+const kindOf = (name, media) => (/802\.11/.test(media) || /wi-?fi|wlan|sans fil/i.test(name) ? 'wifi' : /802\.3/.test(media) || /ethernet/i.test(name) ? 'ethernet' : null);
+
+function detectAdapter() {
+  require('child_process').execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', DETECT_PS], { timeout: 10000, windowsHide: true }, (err, out) => {
+    if (err) return;
+    try {
+      const list = JSON.parse(out);
+      const best = list[0]; // la plus prioritaire pour Internet ; aucune = on garde la précédente
+      if (best) adapter = { name: NET_ADAPTER || best.name, kind: kindOf(best.name, best.media) };
+    } catch {}
+  });
+}
 // Estimation du reste du PC (carte mère, RAM, SSD, ventilateurs...) en watts,
 // et rendement de l'alimentation. Ce ne sont PAS des mesures.
 const OTHER_PARTS_W = Number(process.env.OTHER_PARTS_W) || 50;
@@ -91,7 +110,8 @@ function pick(sensors, test, preferredName) {
 const isCpu = (kind) => (s) => /^\/(amdcpu|intelcpu)\//.test(s.id) && s.id.includes(`/${kind}/`);
 // Carte dédiée (/gpu-nvidia/, /gpu-amd/...) ou puce intégrée (/gpu-intel-integrated/...)
 const isGpu = (kind) => (s) => /^\/gpu-(nvidia|amd|intel)(-[a-z]+)?\//.test(s.id) && s.id.includes(`/${kind}/`);
-const isNet = (s) => /^\/nic\//.test(s.id) && s.id.includes('/throughput/') && s.hardware === NET_ADAPTER;
+const isNic = (s) => /^\/nic\//.test(s.id) && s.id.includes('/throughput/');
+const isNet = (s, name) => isNic(s) && s.hardware === name;
 
 // Valeur d'un capteur au nom exact (ex. "GPU Memory Used"), ou null
 function exact(sensors, test, name) {
@@ -144,7 +164,13 @@ async function readLhm() {
 }
 
 // Choisit les valeurs affichées parmi tous les capteurs
-function extract(sensors) {
+function extract(sensors, netName = adapter.name) {
+  // Nom de carte introuvable dans LHM : on prend la carte qui a le plus de trafic
+  if (!sensors.some((s) => isNet(s, netName))) {
+    const total = new Map();
+    for (const s of sensors.filter(isNic)) total.set(s.hardware, (total.get(s.hardware) || 0) + (s.value || 0));
+    netName = [...total].sort((a, b) => b[1] - a[1])[0]?.[0] ?? netName;
+  }
   // Carte graphique : la carte dédiée passe avant la puce intégrée (portables qui ont les deux)
   const integrated = (s) => s.id.includes('-integrated/');
   const gpuSensors = [...sensors.filter((s) => !integrated(s)), ...sensors.filter(integrated)];
@@ -157,8 +183,8 @@ function extract(sensors) {
     // puce intégrée : pas de "GPU Core" en charge, mais "D3D 3D" (charge 3D vue par Windows)
     gpuLoad: gpu('load', 'GPU Core') ?? gpu('load', 'D3D 3D') ?? pick(gpuSensors, isGpu('load'), /GPU/i),
     gpuPower: pick(gpuSensors, isGpu('power'), /Package|Power/i),
-    netDown: pick(sensors, (s) => isNet(s) && /Download/i.test(s.name), /Download/i),
-    netUp: pick(sensors, (s) => isNet(s) && /Upload/i.test(s.name), /Upload/i),
+    netDown: pick(sensors, (s) => isNet(s, netName) && /Download/i.test(s.name), /Download/i),
+    netUp: pick(sensors, (s) => isNet(s, netName) && /Upload/i.test(s.name), /Upload/i),
     cpuDetails: {
       cores: readCores(sensors),
       averageClock: exact(sensors, isCpu('clock'), 'Cores (Average)'),
@@ -185,7 +211,7 @@ const latest = {
   gpu: { usage: null, temp: null, power: null },
   ram: readRam(),
   power: { measured: null, estimatedWall: null },
-  network: { adapter: NET_ADAPTER, down: null, up: null }, // en octets/s
+  network: { adapter: adapter.name, kind: null, down: null, up: null }, // en octets/s ; kind : 'wifi' | 'ethernet'
   history: [], // [{ t, cpuPower, gpuPower, cpuUsage, gpuUsage, down, up }]
   lhm: { ok: false, error: 'pas encore interrogé' },
 };
@@ -211,6 +237,8 @@ async function refresh() {
   latest.gpu.temp = round1(t.gpuTemp);
   latest.gpu.usage = round1(t.gpuLoad);
   latest.gpu.power = round1(t.gpuPower);
+  latest.network.adapter = adapter.name;
+  latest.network.kind = adapter.kind;
   latest.network.down = t.netDown ?? null;
   latest.network.up = t.netUp ?? null;
   latest.cpu.details = t.cpuDetails ?? null;
@@ -238,6 +266,8 @@ async function refresh() {
 }
 
 function startStats(intervalMs = 1000) {
+  detectAdapter();
+  setInterval(detectAdapter, 15000); // câble branché ou débranché : le graphique suit
   refresh();
   setInterval(refresh, intervalMs);
 }

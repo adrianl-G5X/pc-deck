@@ -35,9 +35,28 @@
       "id": "gestionnaire-taches",
       "label": "Gestionnaire des tâches",
       "icon": "activity",
+      "logo": true,
       "action": {
         "type": "keys",
         "keys": "ctrl+shift+esc"
+      }
+    },
+    {
+      "id": "bureau",
+      "label": "Afficher le bureau",
+      "icon": "folder",
+      "action": {
+        "type": "keys",
+        "keys": "win+d"
+      }
+    },
+    {
+      "id": "capture",
+      "label": "Capture d'écran",
+      "icon": "camera",
+      "action": {
+        "type": "keys",
+        "keys": "win+shift+s"
       }
     },
     {
@@ -69,6 +88,33 @@
       "action": {
         "type": "volume",
         "op": "mute"
+      }
+    },
+    {
+      "id": "media-precedent",
+      "label": "Précédent",
+      "icon": "previous",
+      "action": {
+        "type": "keys",
+        "keys": "mediaprev"
+      }
+    },
+    {
+      "id": "media-lecture",
+      "label": "Lecture / pause",
+      "icon": "play",
+      "action": {
+        "type": "keys",
+        "keys": "mediaplaypause"
+      }
+    },
+    {
+      "id": "media-suivant",
+      "label": "Suivant",
+      "icon": "next",
+      "action": {
+        "type": "keys",
+        "keys": "medianext"
       }
     }
   ]

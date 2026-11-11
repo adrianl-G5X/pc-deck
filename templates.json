@@ -1,10 +1,127 @@
 {
   "templates": [
     {
+      "id": "base",
+      "label": "Boutons de base (tous)",
+      "skipExisting": true,
+      "description": "Ajoute les boutons de départ qui manquent (navigateur, verrouiller, gestionnaire des tâches, bureau, capture d'écran, volume, musique). Ceux que tu as déjà ne sont pas touchés.",
+      "buttons": [
+        {
+          "id": "navigateur",
+          "label": "Navigateur",
+          "icon": "globe",
+          "action": {
+            "type": "open",
+            "target": "https://www.google.com"
+          }
+        },
+        {
+          "id": "verrouiller",
+          "label": "Verrouiller",
+          "icon": "lock",
+          "action": {
+            "type": "lock"
+          }
+        },
+        {
+          "id": "gestionnaire-taches",
+          "label": "Gestionnaire des tâches",
+          "icon": "activity",
+          "logo": true,
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+shift+esc"
+          }
+        },
+        {
+          "id": "bureau",
+          "label": "Afficher le bureau",
+          "icon": "folder",
+          "action": {
+            "type": "keys",
+            "keys": "win+d"
+          }
+        },
+        {
+          "id": "capture",
+          "label": "Capture d'écran",
+          "icon": "camera",
+          "action": {
+            "type": "keys",
+            "keys": "win+shift+s"
+          }
+        },
+        {
+          "id": "volume-moins",
+          "label": "Volume −",
+          "icon": "volume-down",
+          "action": {
+            "type": "volume",
+            "op": "down",
+            "step": 2,
+            "bigStep": 10
+          }
+        },
+        {
+          "id": "volume-plus",
+          "label": "Volume +",
+          "icon": "volume-up",
+          "action": {
+            "type": "volume",
+            "op": "up",
+            "step": 2,
+            "bigStep": 10
+          }
+        },
+        {
+          "id": "son",
+          "label": "Son on/off",
+          "icon": "volume-x",
+          "action": {
+            "type": "volume",
+            "op": "mute"
+          }
+        },
+        {
+          "id": "media-precedent",
+          "label": "Précédent",
+          "icon": "previous",
+          "action": {
+            "type": "keys",
+            "keys": "mediaprev"
+          }
+        },
+        {
+          "id": "media-lecture",
+          "label": "Lecture / pause",
+          "icon": "play",
+          "action": {
+            "type": "keys",
+            "keys": "mediaplaypause"
+          }
+        },
+        {
+          "id": "media-suivant",
+          "label": "Suivant",
+          "icon": "next",
+          "action": {
+            "type": "keys",
+            "keys": "medianext"
+          }
+        }
+      ]
+    },
+    {
       "id": "apple-music",
       "label": "Apple Music",
       "description": "Bouton qui ouvre ou affiche Apple Music sur le 2e écran, et interrupteur « Son sur Apple Music ».",
-      "audioApp": { "label": "Apple Music", "processes": ["AppleMusic", "AMPLibraryAgent"] },
+      "audioApp": {
+        "label": "Apple Music",
+        "processes": [
+          "AppleMusic",
+          "AMPLibraryAgent"
+        ]
+      },
       "buttons": [
         {
           "id": "apple-music",
@@ -14,7 +131,10 @@
             "type": "window",
             "process": "AppleMusic",
             "screen": "secondary",
-            "ifNotRunning": { "type": "app", "appId": "AppleInc.AppleMusicWin_nzyj5cx40ttqa!App" }
+            "ifNotRunning": {
+              "type": "app",
+              "appId": "AppleInc.AppleMusicWin_nzyj5cx40ttqa!App"
+            }
           }
         }
       ]
@@ -28,7 +148,10 @@
           "id": "discord-micro",
           "label": "Micro Discord",
           "style": "mic",
-          "action": { "type": "keys", "keys": "ctrl+shift+alt+m" }
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+shift+alt+m"
+          }
         }
       ]
     },
@@ -42,7 +165,11 @@
           "id": "gmail",
           "label": "Gmail",
           "icon": "mail",
-          "action": { "type": "tab", "url": "https://mail.google.com", "match": "https://mail.google.com/*" }
+          "action": {
+            "type": "tab",
+            "url": "https://mail.google.com",
+            "match": "https://mail.google.com/*"
+          }
         }
       ]
     },
@@ -56,7 +183,11 @@
           "id": "icloud",
           "label": "iCloud",
           "icon": "cloud",
-          "action": { "type": "tab", "url": "https://www.icloud.com", "match": "https://*.icloud.com/*" }
+          "action": {
+            "type": "tab",
+            "url": "https://www.icloud.com",
+            "match": "https://*.icloud.com/*"
+          }
         }
       ]
     }

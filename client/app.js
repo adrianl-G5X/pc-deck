@@ -2,6 +2,9 @@
 
 const $ = (id) => document.getElementById(id);
 const TOKEN_KEY = 'pcdeck-token';
+let authRetries = 0;
+// Demande au navigateur de ne pas effacer le « laissez-passer » de cet appareil (évite de retaper le code)
+try { navigator.storage?.persist?.(); } catch {}
 
 // ---------- Mémoire de l'appareil (jeton d'appairage) ----------
 function loadToken() {
@@ -254,6 +257,7 @@ function showStats(s) {
   $('powerWall').textContent = watts(s.power.estimatedWall);
   $('lgCpu').textContent = watts(s.cpu.power);
   $('lgGpu').textContent = watts(s.gpu.power);
+  $('netTitle').textContent = s.network.kind === 'ethernet' ? 'Câble (Ethernet)' : s.network.kind === 'wifi' ? 'Wi-Fi' : 'Réseau';
   $('lgDown').textContent = speed(s.network.down);
   $('lgUp').textContent = speed(s.network.up);
   $('lhmWarn').textContent = s.lhm.ok ? '' : s.lhm.error;
@@ -270,9 +274,12 @@ let audio = { mode: 'system', appLabel: null, bigStep: false };
 function showAudio(state) {
   audio = state;
   $('audioSwitch').hidden = !state.appLabel;
-  $('audioAppLabel').textContent = state.appLabel || '';
+  // 1 appli : interrupteur « Son sur <appli> ». Plusieurs : chaque appui passe à la suivante (Windows → appli 1 → appli 2 → Windows)
+  const many = (state.apps || []).length > 1;
+  $('audioAppLabel').textContent = many && state.mode !== 'app' ? 'Windows' : state.appLabel || '';
   $('audioApp').checked = state.mode === 'app';
   $('bigStep').checked = !!state.bigStep;
+  $('bigStep').closest('label').hidden = state.bigStepEnabled === false; // désactivé dans les Paramètres
   for (const el of document.querySelectorAll('.deck-btn .target')) updateTarget(el);
 }
 
@@ -299,6 +306,14 @@ function updateTarget(el) {
 }
 
 $('audioApp').addEventListener('change', (e) => {
+  const apps = audio.apps || [];
+  if (apps.length > 1) {
+    e.target.checked = audio.mode === 'app'; // l'affichage suit la réponse du PC
+    const i = audio.mode === 'app' ? apps.indexOf(audio.appLabel) : -1;
+    if (i === apps.length - 1) send({ type: 'set-audio-mode', mode: 'system' });
+    else send({ type: 'set-audio-mode', mode: 'app', app: apps[i + 1] });
+    return;
+  }
   send({ type: 'set-audio-mode', mode: e.target.checked ? 'app' : 'system' });
 });
 $('bigStep').addEventListener('change', (e) => {
@@ -391,7 +406,7 @@ function toast(text, isError) {
 // - copie de l'interface plus ancienne que le PC (appli Android hors ligne) : on recharge ;
 // - appli Android (la « coquille ») plus ancienne que celle fournie par le PC : on propose
 //   de l'installer, et on bloque si elle est trop ancienne pour fonctionner.
-const CLIENT_PROTOCOL = 1;
+const CLIENT_PROTOCOL = 2; // le PC annonce un protocole plus grand : la page se recharge une fois pour prendre la nouvelle interface
 function checkVersions(msg) {
   if (msg.protocol > CLIENT_PROTOCOL) {
     try {
@@ -436,6 +451,7 @@ function applyDisplay(d) {
   const root = document.documentElement;
   root.dataset.theme = d.theme === 'light' ? 'light' : 'dark';
   root.style.setProperty('--amber', d.accent);
+  PcDeckColors.apply(root, d); // fond, touches, texte, courbes personnalisés
   root.style.setProperty('--cols', d.columns);
   const show = d.show || {};
   const card = (id) => document.getElementById(id)?.closest('.card');
@@ -459,7 +475,24 @@ function applyDisplay(d) {
 // Les autres boutons partent tout de suite.
 const DOUBLE_TAP_MS = 400; // 300 ms était trop court au doigt sur une tablette
 let pendingTap = null; // { id, timer }
+
+// « Tu es sûr ? » : boîte maison (le confirm() du navigateur n'existe pas toujours dans l'appli Android)
+function askConfirm(b) {
+  return new Promise((resolve) => {
+    $('confirmTitle').textContent = 'Tu es sûr ?';
+    $('confirmText').textContent = b.label;
+    $('confirmBox').hidden = false;
+    $('confirmNo').focus();
+    const done = (ok) => { $('confirmBox').hidden = true; $('confirmYes').onclick = $('confirmNo').onclick = null; resolve(ok); };
+    $('confirmYes').onclick = () => done(true);
+    $('confirmNo').onclick = () => done(false);
+  });
+}
 function pressButton(b) {
+  if (b.confirm) { if ($('confirmBox').hidden) askConfirm(b).then((ok) => ok && send({ type: 'run', id: b.id, press: 'single' })); return; }
+  pressNow(b);
+}
+function pressNow(b) {
   if (pendingTap && pendingTap.id === b.id) {
     clearTimeout(pendingTap.timer);
     pendingTap = null;
@@ -486,6 +519,8 @@ function pressButton(b) {
 
 function showButtons(buttons) {
   const grid = $('buttons');
+  const big = buttons.find((b) => b.volume?.bigStep)?.volume.bigStep || 10; // valeur réglée dans les Paramètres
+  $('bigStepLabel').textContent = `${big} en ${big}`;
   grid.replaceChildren(
     ...buttons.map((b) => {
       const el = document.createElement('button');
@@ -494,7 +529,13 @@ function showButtons(buttons) {
       const icon = document.createElement('span');
       icon.className = 'icon';
       const svg = iconSvg(b.icon);
-      if (svg) icon.innerHTML = svg; // icône au trait (nom, ex. "mail")
+      if (b.logo) { // vrai logo du programme ou du site (envoyé par le PC)
+        const img = document.createElement('img');
+        img.className = 'logo';
+        img.alt = '';
+        img.src = b.logo;
+        icon.append(img);
+      } else if (svg) icon.innerHTML = svg; // icône au trait (nom, ex. "mail")
       else icon.textContent = b.icon; // sinon : emoji ou texte
       const label = document.createElement('span');
       label.className = 'label';
@@ -687,10 +728,18 @@ function onMessage(event) {
       $('pairError').textContent = msg.error;
       break;
     case 'auth-error':
+      // Un 1er refus peut venir d'un PC qui vient de redémarrer : on réessaie une fois avant d'oublier l'appareil
+      if (authRetries < 3 && loadToken()) {
+        authRetries++;
+        setTimeout(() => { const t = loadToken(); if (t) send({ type: 'auth', token: t }); }, 1500);
+        break;
+      }
+      authRetries = 0;
       saveToken(null);
       showPairing();
       break;
     case 'hello':
+      authRetries = 0;
       $('pair').hidden = true;
       // Sur le PC lui-même, "localhost" n'est pas le câble USB mais l'accès direct
       setStatus(

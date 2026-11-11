@@ -5,6 +5,22 @@ le script de publication les range sous le bon numéro, et elles s'affichent dan
 notification de mise à jour de tes proches.
 
 ## Prochaine version
+- Installation : PC Deck se lance toujours à la fin de l'installeur (plus de case à cocher). Si la page Paramètres ne trouve pas PC Deck, elle explique quoi faire.
+- Thème personnalisable : couleur du fond, des touches, du texte et des deux courbes réseau en plus de l'accent (Paramètres → Affichage), 6 thèmes prêts à l'emploi (Graphite, Papier, Minuit, Forêt, Violet, Rose). Les logos prennent la couleur des touches.
+- Vrais logos : un bouton de site, de programme, de fichier ou d'onglet peut afficher le logo du programme ou du site à la place de l'icône (case « Utiliser le vrai logo », cochée pour un nouveau bouton). Le PC les récupère et les envoie à tous les appareils, qui les mettent à jour tout seuls. Trouvés en direct, même pour les applis du Store, les dossiers ou n'importe quelle appli installée (par son nom) ; on peut aussi choisir le logo d'une autre appli ou envoyer sa propre image.
+- Écran du PC sur la tablette : choix de la résolution (720p, 1080p, Max = la plus grande image que l'appareil peut afficher).
+- Réseau : le graphique suit tout seul la connexion utilisée (câble Ethernet ou Wi-Fi) et affiche « Câble (Ethernet) » ou « Wi-Fi » ; il bascule si tu branches ou débranches le câble.
+- Extension du navigateur : elle fonctionne aussi dans Firefox (à faire signer par Mozilla, voir DEVELOPPEUR.md).
+- Paramètres : une case « activé » à côté de chaque interrupteur, de chaque appli de son et du « Volume par grands pas ». Décochée, l'élément disparaît de la tablette mais garde tous ses réglages.
+- Le bouton Verrouiller demande « Tu es sûr ? » sur la tablette avant de verrouiller le PC. Chaque bouton peut avoir cette confirmation (case dans la fenêtre de modification).
+- Paramètres : un « brouillon » à côté de l'aperçu de la tablette. On y met de côté des boutons (ils disparaissent de la tablette mais gardent tous leurs réglages) et on les remet quand on veut, par glisser-déposer ou avec ⇢ / ⇠.
+- Premier démarrage : 11 boutons de base dès l'installation (navigateur, verrouiller, gestionnaire des tâches, bureau, capture d'écran, volume, son on/off, précédent, lecture/pause, suivant). Déjà installé ? Paramètres → « Ajouter un modèle » → « Boutons de base (tous) » ajoute ceux qui manquent.
+- Paramètres : la liste des boutons devient un aperçu de la tablette (même touches, thème et nombre de colonnes en direct) ; glisser-déposer pour réordonner, clic pour modifier, ✕ pour supprimer, Alt + flèches au clavier.
+- Appairage plus solide : fichier des appareils écrit en deux temps avec copie de secours ; la tablette réessaie 3 fois avant d'oublier l'appareil.
+- Moins de saisies du code : un refus d'identification juste après un redémarrage du PC est réessayé avant d'oublier l'appareil ; le navigateur est prié de garder le laissez-passer ; iPhone : le QR utilise l'adresse Tailscale (un seul code, à la maison comme dehors).
+- Son : plusieurs applis possibles (Apple Music, Spotify, Discord…). Sur la tablette, l'interrupteur « Son sur… » passe de Windows à chaque appli, puis revient à Windows.
+- Paramètres : la section « Son » regroupe les applis et le volume par grands pas.
+- Paramètres : la valeur du « Volume de 10 en 10 » se règle (1 à 50 %), dans la section Interrupteurs ; la tablette affiche la valeur choisie.
 
 ## 0.4.2 — 2026-11-09
 - Un programme déjà ouvert (navigateur, appli, dossier) revient au premier plan au lieu de s'ouvrir une deuxième fois ; réduit, il est restauré.

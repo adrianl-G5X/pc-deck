@@ -59,10 +59,10 @@ Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\setup-tailscale.ps1"" -Step install"; Flags: runhidden waituntilterminated; Tasks: tailscale; StatusMsg: "Installation de Tailscale (accès hors de chez vous)..."
 Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\tools\setup-tailscale.ps1"" -Step login"; Flags: runhidden nowait runasoriginaluser; Tasks: tailscale; Check: not WizardSilent
 ; Lancement de PC Deck (avec les droits de l'utilisateur, pas ceux de l'installeur)
-Filename: "{app}\PC Deck.exe"; WorkingDir: "{app}"; Description: "Lancer PC Deck maintenant"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: HasTrayExe
-Filename: "{app}\PC Deck.exe"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: WizardSilent and HasTrayExe
-Filename: "{sys}\wscript.exe"; Parameters: """{app}\tools\launch-hidden.vbs"""; WorkingDir: "{app}"; Description: "Lancer PC Deck maintenant"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: not HasTrayExe
-Filename: "{sys}\wscript.exe"; Parameters: """{app}\tools\launch-hidden.vbs"""; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: WizardSilent and not HasTrayExe
+; Toujours lancé à la fin (installation normale ou mise à jour silencieuse), sans case à cocher :
+; sinon un proche qui ne coche rien se retrouve avec un PC Deck éteint.
+Filename: "{app}\PC Deck.exe"; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: HasTrayExe
+Filename: "{sys}\wscript.exe"; Parameters: """{app}\tools\launch-hidden.vbs"""; WorkingDir: "{app}"; Flags: nowait runasoriginaluser; Check: not HasTrayExe
 
 [UninstallRun]
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""PC Deck Server"""; Flags: runhidden; RunOnceId: "PcDeckFirewall"

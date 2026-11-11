@@ -3,13 +3,14 @@
 // - PC injoignable : on affiche la copie, et l'appli attend la reconnexion.
 // Les données en direct (WebSocket /ws, /api) ne passent jamais par ici.
 
-const CACHE = 'pcdeck-v29';
+const CACHE = 'pcdeck-v42';
 const SHELL = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
   '/remote.js',
+  '/colors.js',
   '/chart.js',
   '/icons.js',
   '/manifest.webmanifest',

@@ -45,7 +45,7 @@ if ($ok -notmatch '^[oOyY]') {
 }
 
 git add package.json package-lock.json CHANGELOG.md
-git commit -m "Version $Version"
+git commit -m "$Version"
 git tag -a "v$Version" -m "Version $Version"
 git push origin HEAD --follow-tags
 if ($LASTEXITCODE -ne 0) { throw 'Envoi vers GitHub impossible (connexion, droits ?). La version est prête localement : relance « git push origin HEAD --follow-tags ».' }

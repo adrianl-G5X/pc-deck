@@ -3,4 +3,4 @@
 // la tablette et le PC s'affichent alors un message clair au lieu de planter.
 const { version } = require('../package.json');
 
-module.exports = { VERSION: version, PROTOCOL: 1 };
+module.exports = { VERSION: version, PROTOCOL: 2 };

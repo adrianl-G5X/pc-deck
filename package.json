@@ -3,6 +3,7 @@
   "version": "0.4.2",
   "description": "Stream Deck maison : contrÃ´le du PC et tableau de bord depuis une tablette Android",
   "private": true,
+  "license": "MIT",
   "pcdeck": {
     "updateRepo": "adrianl-G5X/pc-deck"
   },

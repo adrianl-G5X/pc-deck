@@ -141,7 +141,7 @@ async function startViewing(ws, opts = {}) {
   else console.log(`Contrôle à distance : un appareil regarde l'écran (${fps} img/s)`);
   const v = {
     mon: clampInt(opts.monitor, 0, Math.max(0, list.length - 1), 0),
-    maxW: clampInt(opts.maxWidth, 640, 2560, 1600),
+    maxW: clampInt(opts.maxWidth, 640, 3840, 1600),
     quality: clampInt(opts.quality, 30, 90, 60),
     fps,
     seq: old?.seq || 0,

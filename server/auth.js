@@ -14,17 +14,24 @@ const MAX_FAILURES = 5;
 const LOCK_MS = 5 * 60 * 1000;
 const failures = new Map(); // adresse IP -> { count, lockedUntil }
 
+function readOne(file) {
+  return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, '')); // ignore le BOM
+}
+// Fichier illisible (écriture en cours...) : on lit la copie de secours plutôt que de « oublier » tous les appareils
 function readJson(file, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, '')); // ignore le BOM
-  } catch {
-    return fallback;
+  for (const f of [file, file + '.bak']) {
+    try { return readOne(f); } catch { /* essai suivant */ }
   }
+  return fallback;
 }
 
+// Écriture en deux temps : un lecteur ne voit jamais un fichier à moitié écrit
 function writeJson(file, value) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(value, null, 2));
+  const text = JSON.stringify(value, null, 2);
+  fs.writeFileSync(file + '.tmp', text);
+  fs.writeFileSync(file + '.bak', text);
+  fs.renameSync(file + '.tmp', file);
 }
 
 const sha256 = (text) => crypto.createHash('sha256').update(text).digest('hex');

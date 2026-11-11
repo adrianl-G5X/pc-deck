@@ -130,12 +130,25 @@ function parseConfig(raw) {
     ids.add(b.id);
     if (b.color !== undefined && b.color !== null && !/^#[0-9a-f]{6}$/i.test(b.color))
       fail(where, '"color" doit être une couleur comme "#f2a33a"');
+    if (b.draft !== undefined && typeof b.draft !== 'boolean') fail(where, '"draft" doit valoir true ou false');
+    if (b.confirm !== undefined && typeof b.confirm !== 'boolean') fail(where, '"confirm" doit valoir true ou false');
+    if (b.logo !== undefined && typeof b.logo !== 'boolean') fail(where, '"logo" doit valoir true ou false');
+    if (b.logoApp !== undefined && (typeof b.logoApp !== 'string' || b.logoApp.length > 100)) fail(where, '"logoApp" doit être le nom d\'une appli (texte)');
+    if (b.logoImage !== undefined && !(typeof b.logoImage === 'string' && b.logoImage.length <= 300000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(b.logoImage)))
+      fail(where, '"logoImage" doit être une image PNG, JPEG ou WebP de moins de 200 Ko');
+    const action = checkAction(b.action, where);
     return {
       id: b.id,
+      logo: b.logo === true, // vrai logo du programme ou du site à la place de l'icône
+      logoApp: b.logoApp || '', // logo d'une autre appli installée (son nom dans le menu Démarrer)
+      logoImage: b.logoImage || '', // image personnalisée (a priorité sur le reste)
+      // « Tu es sûr ? » sur la tablette : par défaut pour verrouiller le PC, au choix pour le reste
+      confirm: b.confirm === undefined ? action.type === 'lock' : b.confirm,
+      draft: b.draft === true, // brouillon : gardé dans la config mais pas affiché sur la tablette
       label: String(b.label ?? b.id),
       icon: String(b.icon ?? ''),
       color: b.color || null,
-      action: checkAction(b.action, where),
+      action,
       // Double appui : action choisie, null = rien, absent = automatique (nouvel onglet pour un navigateur)
       double: b.double === undefined || b.double === null ? b.double : checkAction(b.double, `${where}, double appui`),
     };
@@ -152,8 +165,10 @@ function parseConfig(raw) {
     ids.add(t.id);
     if (t.style !== undefined && !['mic', 'switch'].includes(t.style))
       fail(where, '"style" doit être "mic" ou "switch"');
+    if (t.draft !== undefined && typeof t.draft !== 'boolean') fail(where, '"draft" doit valoir true ou false');
     return {
       id: t.id,
+      draft: t.draft === true, // désactivé : gardé dans la config, pas affiché sur la tablette
       label: String(t.label ?? t.id),
       style: t.style || 'switch',
       action: checkAction(t.action, where),
@@ -161,17 +176,26 @@ function parseConfig(raw) {
   });
 
   // Application dont les boutons de son peuvent régler le volume (facultatif)
-  let audioApp = null;
-  if (raw.audioApp !== undefined) {
-    const p = raw.audioApp?.processes;
+  // "audioApps" : plusieurs applis (la tablette passe de l'une à l'autre) ; l'ancien "audioApp" (une seule) reste accepté
+  const rawApps = raw.audioApps !== undefined ? raw.audioApps : raw.audioApp !== undefined ? [raw.audioApp] : [];
+  if (!Array.isArray(rawApps) || rawApps.length > 8) fail('audioApps', 'doit être une liste de 8 applis au plus');
+  const allApps = rawApps.map((a, i) => {
+    const where = `audioApps[${i}]`;
+    const p = a?.processes;
     if (!Array.isArray(p) || p.length === 0 || !p.every((x) => typeof x === 'string' && /^[\w.-]+$/.test(x)))
-      fail('audioApp', '"processes" doit être une liste de noms de programmes (ex. ["opera"])');
-    audioApp = {
-      label: String(raw.audioApp.label || p[0]),
+      fail(where, '"processes" doit être une liste de noms de programmes (ex. ["opera"])');
+    if (a.draft !== undefined && typeof a.draft !== 'boolean') fail(where, '"draft" doit valoir true ou false');
+    return {
+      label: String(a.label || p[0]),
+      draft: a.draft === true,
       // nom du programme sans ".exe", en minuscules
       processes: p.map((x) => x.toLowerCase().replace(/\.exe$/, '')),
     };
-  }
+  });
+  if (new Set(allApps.map((a) => a.label)).size !== allApps.length) fail('audioApps', 'deux applis ont le même nom affiché');
+  const audioApps = allApps.filter((a) => !a.draft); // une appli désactivée (brouillon) n'apparaît pas sur la tablette
+  const audioApp = audioApps[0] || null; // première appli (ancien nom)
+  if (raw.bigStepEnabled !== undefined && typeof raw.bigStepEnabled !== 'boolean') fail('racine', '"bigStepEnabled" doit valoir true ou false');
 
   // Mode USB de secours (adb reverse)
   const usb = {
@@ -191,6 +215,12 @@ function parseConfig(raw) {
   const display = {
     theme: d.theme === 'light' ? 'light' : 'dark',
     accent: /^#[0-9a-f]{6}$/i.test(d.accent || '') ? d.accent : '#f2a33a',
+    // Couleurs personnalisées (vide = celles du thème) : fond, touches, texte, courbe de réception, courbe d'envoi
+    colors: Object.fromEntries(['background', 'keys', 'text', 'down', 'up'].map((k) => {
+      const v = d.colors?.[k];
+      if (v !== undefined && v !== '' && !/^#[0-9a-f]{6}$/i.test(v)) fail('display', `"colors.${k}" doit être une couleur comme "#1b1d1f"`);
+      return [k, v || ''];
+    })),
     columns: Number.isInteger(cols) && cols >= 2 && cols <= 6 ? cols : 3,
     refreshMs: [1000, 2000, 5000].includes(d.refreshMs) ? d.refreshMs : 1000,
     show: Object.fromEntries(
@@ -201,7 +231,8 @@ function parseConfig(raw) {
   // Démarrage avec Windows : true / false, ou null = on n'y touche pas
   const autostart = typeof raw.autostart === 'boolean' ? raw.autostart : null;
 
-  return { server, buttons, toggles, audioApp, usb, remote, display, autostart };
+  const bigStepEnabled = raw.bigStepEnabled !== false; // « Volume par grands pas » (désactivable)
+  return { server, buttons, toggles, audioApp, audioApps, bigStepEnabled, usb, remote, display, autostart };
 }
 
 // Relance "onChange" à chaque enregistrement de config.json.

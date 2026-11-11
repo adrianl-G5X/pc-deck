@@ -199,10 +199,16 @@ async function serveSettings(req, res, pathname) {
   try {
     if (pathname === '/settings') return sendFile(res, path.join(CLIENT_DIR, 'settings.html'));
 
+    // Applis installées (menu Démarrer), pour choisir un logo par son nom
+    if (pathname === '/api/settings/apps' && req.method === 'GET') {
+      const apps = await require('./logo').listApps();
+      return json(res, 200, { apps: [...new Set(apps.map((a) => a.Name))].sort((a, b) => a.localeCompare(b)) });
+    }
+
     if (pathname === '/api/settings' && req.method === 'GET') {
       const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8').replace(/^\uFEFF/, ''));
       const templates = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'templates.json'), 'utf8')).templates;
-      return json(res, 200, { config: raw, templates, devices: auth.listDevices(), version: VERSION, configPath: CONFIG_PATH });
+      return json(res, 200, { config: raw, templates, devices: auth.listDevices(), version: VERSION, configPath: CONFIG_PATH, logos: Object.fromEntries(logos) });
     }
 
     // Enregistrer : la configuration est vérifiée AVANT d'être écrite (sinon rien ne change)
@@ -258,7 +264,7 @@ server.on('upgrade', (req, socket, head) => {
   // Extension de navigateur : seulement depuis ce PC, et seulement une extension
   if (url.pathname === '/ext') {
     const origin = req.headers.origin || '';
-    if (!isLoopback(req.socket.remoteAddress) || !/^chrome-extension:\/\//.test(origin)) {
+    if (!isLoopback(req.socket.remoteAddress) || !/^(chrome|moz)-extension:\/\//.test(origin)) {
       socket.destroy();
       return;
     }
@@ -281,15 +287,34 @@ function send(ws, message) {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(message));
 }
 
+// ---------- Logos des boutons ----------
+// Cherchés en arrière-plan ; dès qu'un logo change ou arrive, tous les appareils reçoivent les boutons à jour.
+const { getLogo } = require('./logo');
+const logos = new Map(); // id du bouton -> "data:image/png;base64,..."
+async function refreshLogos() {
+  let changed = false;
+  const wanted = config.buttons.filter((b) => b.logo && !b.logoImage && !b.draft);
+  for (const b of wanted) {
+    const logo = await getLogo(b).catch(() => null);
+    if (logo && logos.get(b.id) !== logo) { logos.set(b.id, logo); changed = true; }
+    if (!logo && logos.delete(b.id)) changed = true;
+  }
+  for (const id of [...logos.keys()]) if (!wanted.some((b) => b.id === id)) { logos.delete(id); changed = true; }
+  if (changed) broadcast({ type: 'buttons', buttons: publicButtons() });
+}
+
 function publicButtons() {
   // On n'envoie jamais le détail des actions à la tablette.
-  return config.buttons.map((button) => {
+  return config.buttons.filter((b) => !b.draft).map((button) => {
     const { id, label, icon, color, action } = button;
     return {
     id,
     label,
     icon,
     color,
+    // image perso d'abord, sinon vrai logo (PNG) du programme ou du site trouvé par le PC
+    logo: button.logoImage || (button.logo ? logos.get(id) || null : null),
+    confirm: button.confirm === true, // la tablette demande « Tu es sûr ? » avant d'envoyer
     // La tablette n'attend un éventuel 2e appui (300 ms) que pour ces boutons
     double: !!doubleActionFor(button),
     // Pour les boutons de son : "up" / "down" / "mute" et leurs deux pas
@@ -303,21 +328,29 @@ function publicButtons() {
 // Mémorisés dans state.json (dossier de données) pour survivre à un redémarrage.
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 // toggles : position de chaque interrupteur, ex. { "discord-micro": true } = micro coupé.
-const state = { audioMode: 'system', bigStep: false, toggles: {} };
+// audioApp : nom affiché de l'appli choisie (plusieurs possibles dans config.audioApps)
+const state = { audioMode: 'system', audioApp: null, bigStep: false, toggles: {} };
 try {
   const saved = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8').replace(/^﻿/, ''));
   if (saved.audioMode === 'app') state.audioMode = 'app';
+  if (typeof saved.audioApp === 'string') state.audioApp = saved.audioApp;
   if (saved.bigStep === true) state.bigStep = true;
   for (const [id, on] of Object.entries(saved.toggles || {})) state.toggles[id] = on === true;
 } catch {}
 
 function publicToggles() {
-  return config.toggles.map(({ id, label, style }) => ({ id, label, style, active: !!state.toggles[id] }));
+  return config.toggles.filter((t) => !t.draft).map(({ id, label, style }) => ({ id, label, style, active: !!state.toggles[id] }));
+}
+
+// Appli choisie pour les boutons de son (la première si son nom a disparu de la config)
+function selectedApp() {
+  return config.audioApps.find((a) => a.label === state.audioApp) || config.audioApps[0] || null;
 }
 
 function audioState() {
-  const mode = state.audioMode === 'app' && config.audioApp ? 'app' : 'system';
-  return { mode, appLabel: config.audioApp?.label || null, bigStep: state.bigStep };
+  const app = selectedApp();
+  const mode = state.audioMode === 'app' && app ? 'app' : 'system';
+  return { mode, appLabel: app?.label || null, apps: config.audioApps.map((a) => a.label), bigStep: state.bigStep && config.bigStepEnabled, bigStepEnabled: config.bigStepEnabled };
 }
 
 function saveState() {
@@ -390,9 +423,13 @@ wss.on('connection', (ws, req) => {
     }
 
     if (msg.type === 'set-audio-mode') {
-      // Seulement deux valeurs possibles ; "app" seulement si audioApp est configuré
-      if (msg.mode === 'system' || (msg.mode === 'app' && config.audioApp)) updateState({ audioMode: msg.mode });
-      else send(ws, { type: 'audio', audio: audioState() });
+      // "system", ou "app" avec le nom affiché d'une appli de la config (la première par défaut)
+      if (msg.mode === 'system') updateState({ audioMode: 'system' });
+      else if (msg.mode === 'app' && config.audioApps.length) {
+        const wanted = config.audioApps.find((a) => a.label === msg.app) || config.audioApps[0];
+        updateState({ audioMode: 'app', audioApp: wanted.label });
+      } else send(ws, { type: 'audio', audio: audioState() });
+      refreshLevels();
       return;
     }
 
@@ -422,7 +459,7 @@ wss.on('connection', (ws, req) => {
 
     // Bascule d'un interrupteur : lance son action puis inverse sa position
     if (msg.type === 'toggle' || msg.type === 'toggle-sync') {
-      const toggle = config.toggles.find((t) => t.id === msg.id);
+      const toggle = config.toggles.find((t) => t.id === msg.id && !t.draft);
       if (!toggle) {
         send(ws, { type: 'result', id: String(msg.id).slice(0, 60), ok: false, error: 'Interrupteur inconnu' });
         return;
@@ -445,7 +482,7 @@ wss.on('connection', (ws, req) => {
     }
 
     if (msg.type === 'run') {
-      const button = config.buttons.find((b) => b.id === msg.id);
+      const button = config.buttons.find((b) => b.id === msg.id && !b.draft);
       if (!button) {
         send(ws, { type: 'result', id: String(msg.id).slice(0, 60), ok: false, error: 'Bouton inconnu' });
         return;
@@ -453,7 +490,7 @@ wss.on('connection', (ws, req) => {
       // Simple ou double appui : la tablette a déjà fait la différence et n'envoie qu'UNE commande
       const dbl = msg.press === 'double' ? doubleActionFor(button) : null;
       try {
-        const context = { audioMode: audioState().mode, audioApp: config.audioApp, bigStep: state.bigStep, repeat: !!dbl };
+        const context = { audioMode: audioState().mode, audioApp: selectedApp(), bigStep: state.bigStep && config.bigStepEnabled, repeat: !!dbl };
         const out = await runAction(dbl || button.action, context);
         const message = typeof out === 'string' ? out : out?.message || null;
         console.log(`Action : ${button.label}${message ? ` (${message})` : ''}`);
@@ -473,7 +510,8 @@ let levels = { system: null, app: null };
 async function refreshLevels() {
   try {
     const system = await changeSystemVolume('get', 0);
-    const app = config.audioApp ? await changeAppVolume(config.audioApp.processes, 'get', 0) : null;
+    const sel = selectedApp();
+    const app = sel ? await changeAppVolume(sel.processes, 'get', 0) : null;
     const next = { system, app };
     if (JSON.stringify(next) !== JSON.stringify(levels)) {
       levels = next;
@@ -541,8 +579,11 @@ function applyConfig(newConfig) {
   broadcast({ type: 'audio', audio: audioState() });
   broadcast({ type: 'remote', remote: config.remote });
   broadcast({ type: 'display', display: config.display });
+  refreshLogos();
 }
 watchConfig(applyConfig);
+refreshLogos();
+setInterval(refreshLogos, 10 * 60 * 1000); // programme mis à jour, site qui change de logo
 
 startWorker();
 startNetmon();

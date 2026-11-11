@@ -1,0 +1,92 @@
+MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.2)
+=========================================================
+Derniere mise a jour : 10/11/2026Rien de tout cela n'est encore publie : ca sera range dans la prochaine version.
+(Ce fichier est mis a jour a chaque modification et a chaque push.)
+
+TABLETTE / APPLI
+- Verrouiller : la tablette demande "Tu es sur ?" avant de verrouiller le PC.
+  Chaque bouton peut avoir cette confirmation (case dans la fenetre de modification).
+- Vue de l'ecran du PC : trois resolutions au choix, 720p, 1080p (par defaut) et Max
+  (la plus grande image que l'appareil peut afficher, jamais plus que l'ecran du PC).
+  La taille reelle de l'image s'affiche a cote des images par seconde.
+- Vrais logos sur les boutons : pour un programme, un site, un fichier ou un onglet, la
+  tablette affiche le logo du programme (son icone) ou du site (favicon) a la place de
+  l'icone au trait. Case "Utiliser le vrai logo" dans la fenetre du bouton (cochee par
+  defaut pour un nouveau bouton). Le PC les cherche, les garde et les envoie a tous les
+  appareils ; ils se mettent a jour tout seuls (programme mis a jour, site change de logo).
+  Recherche en temps reel : programme, dossier, "Accueil", appli du Microsoft Store (Apple
+  Music...), site, programme deja ouvert, ou appli installee dont le nom ressemble a celui du
+  bouton (ex. "Gestionnaire des taches"). Option "Logo d'une autre appli installee" (liste
+  des applis du PC) et "Image personnalisee" (reduite a 128 px, gardee dans la config).
+  Par defaut : un bouton de dossier, d'"Accueil" ou d'emplacement Windows prend le logo de
+  l'Explorateur de fichiers ; Ctrl+Maj+Echap prend le logo du Gestionnaire des taches du PC
+  (Taskmgr.exe, quelle que soit la langue) ; le bouton de base "Gestionnaire des taches"
+  a le vrai logo active des l'installation.
+  Les logos n'ont plus de fond blanc : ils prennent la couleur des touches du theme.
+  (Un logo tout noir sur un theme sombre se voit mal : choisir un autre logo ou une image perso.)
+
+THEME PERSONNALISABLE
+- Parametres > Affichage : en plus de la couleur d'accent, on choisit la couleur du fond,
+  des touches, du texte, de la courbe de reception et de la courbe d'envoi. Le relief des
+  touches, le quadrillage et les textes secondaires se calculent tout seuls. Bouton
+  "Par defaut" pour chaque couleur ; l'apercu de la tablette suit en direct.
+- 6 themes prets a l'emploi : Graphite (defaut), Papier (clair), Minuit, Foret, Violet, Rose.
+- Graphique reseau : suit tout seul la connexion utilisee (cable Ethernet ou Wi-Fi),
+  affiche "Cable (Ethernet)" ou "Wi-Fi", et bascule si on branche ou debranche le cable.
+- Son : plusieurs applis possibles (Apple Music, Spotify, Discord...). L'interrupteur
+  "Son sur..." passe de Windows a chaque appli, puis revient a Windows.
+- Le "Volume de 10 en 10" se regle (1 a 50 %) et la tablette affiche la valeur choisie.
+- Appairage plus solide : moins de demandes de code (nouvel essai apres un redemarrage
+  du PC, le navigateur garde le laissez-passer, iPhone : QR avec l'adresse Tailscale).
+
+PARAMETRES (fenetre sur le PC)
+- La liste des boutons devient un apercu de la tablette : glisser-deposer pour
+  reordonner, clic pour modifier, croix pour supprimer, Alt + fleches au clavier.
+- Brouillon : on met des boutons de cote (ils disparaissent de la tablette mais gardent
+  tous leurs reglages) et on les remet quand on veut.
+- Une case "active" a cote de chaque interrupteur, chaque appli de son et du
+  "Volume par grands pas" : decochee, l'element disparait de la tablette mais garde ses reglages.
+- La section "Son" regroupe les applis et le volume par grands pas.
+- Micro Discord est range dans les interrupteurs (et non plus dans les boutons).
+
+PREMIER DEMARRAGE
+- 11 boutons de base des l'installation (navigateur, verrouiller, gestionnaire des taches,
+  bureau, capture d'ecran, volume, son on/off, precedent, lecture/pause, suivant).
+  Deja installe ? Parametres > "Ajouter un modele" > "Boutons de base (tous)".
+
+INSTALLATION (probleme vu sur le portable : PC Deck ne tournait pas apres l'installation)
+- L'installeur lance toujours PC Deck a la fin (plus de case "Lancer PC Deck maintenant" a
+  cocher) : un proche qui ne coche rien n'a plus un PC Deck eteint.
+- Page Parametres : si le PC ne repond pas, un message clair dit quoi faire (menu Demarrer >
+  PC Deck, attendre 10 s, F5) au lieu de "Failed to fetch".
+- Cause exacte encore a confirmer sur le portable (le journal n'existait pas : le
+  programme de l'icone n'avait jamais tourne). Ces correctifs ne sont pas testes sur un PC vierge.
+
+SIGNATURE DU CODE (pour que Windows n'bloque plus l'installeur : erreur 4551 / Smart App Control)
+- Ajoute pour candidater a SignPath Foundation (signature gratuite des projets open source) :
+  fichier LICENSE (MIT), "license": "MIT" dans package.json, CODE_SIGNING_POLICY.md (roles,
+  politique de confidentialite), mention d'attribution dans le README.
+- Reste a faire par toi : double authentification GitHub, demande sur signpath.org, puis
+  branchement de la signature dans .github/workflows/release.yml une fois la demande acceptee.
+
+EXTENSION DU NAVIGATEUR
+- Fonctionne maintenant aussi dans Firefox (version 1.1.1) : manifeste adapte,
+  serveur qui accepte l'origine Firefox, signal toutes les 20 s pour que Firefox
+  n'endorme pas l'extension. Teste sur Firefox 159 (profil temporaire).
+- Fichier a envoyer a Mozilla pour signature : dist/pcdeck-onglets-firefox-1.1.1.zip
+  (envoi fait en mode "A vous de jouer" / non liste).
+- Mise a jour automatique prevue (update_url + extension/updates.json) : pas encore
+  active, il manque le .xpi signe heberge sur GitHub et le remplissage de updates.json.
+
+DEPOT GITHUB
+- README.md reecrit, plus simple. Anciens details techniques dans DEVELOPPEUR.md.
+- Historique reecrit : plus de "Co-Authored-By: Claude", une seule adresse d'auteur
+  (ton adresse noreply GitHub), messages de commit courts avec le numero de version
+  devant (ex. "0.4.2"). Le script scripts/release.ps1 ecrit desormais "0.4.3" et non
+  plus "Version 0.4.3".
+
+CE QUI RESTE A VERIFIER SUR LE MATERIEL
+- Sur la tablette : confirmation de verrouillage, "Son sur..." avec plusieurs applis,
+  boutons de resolution, titre du graphique reseau.
+- Mise a jour reelle et installation de Tailscale sur un PC vierge (portable).
+- Extension Firefox : installation du .xpi signe et mise a jour automatique.

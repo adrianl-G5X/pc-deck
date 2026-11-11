@@ -41,6 +41,9 @@
   .row .txt b { display: block; font-weight: 600; }
   .row .txt span { color: var(--text-2); font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row .acts { display: flex; gap: 6px; flex: none; }
+  .row .en { display: grid; place-items: center; flex: none; cursor: pointer; }
+  .row .en input { width: 20px; height: 20px; accent-color: var(--amber); cursor: pointer; }
+  .row.off, .card.off { opacity: .55; }
   .tools { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
   .card { background: var(--scope); border-radius: 10px; padding: 16px 18px; }
   .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
@@ -65,6 +68,50 @@
   .keys { cursor: pointer; }
   ul.sum { margin: 8px 0 0; padding-left: 20px; color: var(--text-2); font-size: 14px; max-height: 240px; overflow: auto; }
   .muted { color: var(--muted); }
+  /* Aperçu de la tablette : mêmes touches que l'appli, rangées par glisser-déposer */
+  .tablet { --t-rack: #1b1d1f; --t-key: #25282b; --t-top: #34383c; --t-bottom: #121315; --t-text: #e6e2d8; --t-text2: #9ba0a5; --t-muted: #6c7176;
+    background: var(--t-rack); border: 1px solid #3a3e42; border-radius: 16px; padding: 12px 14px 16px; max-width: 760px; }
+  .tablet.light { --t-rack: #e8e5de; --t-key: #f7f5f0; --t-top: #ffffff; --t-bottom: #c9c3b6; --t-text: #1b1d1f; --t-text2: #4b5055; --t-muted: #757a80; border-color: #c9c3b6; }
+  .tablet-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--t-muted); margin-bottom: 10px; }
+  .deck { display: grid; gap: 9px; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); grid-auto-rows: minmax(84px, auto); }
+  .tile { position: relative; cursor: grab; user-select: none; min-height: 84px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 8px;
+    background: var(--t-key); border-top: 1px solid var(--t-top); border-bottom: 3px solid var(--t-bottom); border-radius: 7px;
+    transition: transform 90ms ease, opacity 90ms ease; }
+  .tile:hover { transform: translateY(-1px); }
+  .tile .icon { display: flex; font-size: 26px; line-height: 1; color: var(--btn-color, var(--t-text)); }
+  .tile .icon svg { width: 28px; height: 28px; }
+  .tile .icon .logo { width: 38px; height: 38px; object-fit: contain; }
+  .color-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .color-row span { flex: 1; font-size: 14px; }
+  .color-row .btn { padding: 2px 10px; }
+  .logo-pick { display: grid; gap: 6px; margin: 6px 0 10px; }
+  .logo-pick .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .logo-pick img { width: 40px; height: 40px; object-fit: contain; padding: 3px; border-radius: 9px; background: rgba(255, 255, 255, 0.92); }
+  .tile .label { font-size: 14px; text-align: center; color: var(--t-text2); overflow-wrap: anywhere; }
+  .tile .target { font-size: 12px; color: var(--t-muted); }
+  .tile .badge { position: absolute; left: 6px; top: 5px; font-size: 11px; color: var(--t-muted); }
+  .tile .mini { position: absolute; top: 3px; width: 22px; height: 22px; line-height: 1; padding: 0; border: 0; border-radius: 6px;
+    background: transparent; color: var(--t-muted); cursor: pointer; font-size: 15px; opacity: 0; }
+  .tile .del { right: 4px; }
+  .tile .side { right: 28px; }
+  .tile:hover .mini, .tile:focus-within .mini { opacity: 1; }
+  .tile .del:hover { color: var(--bad); background: rgba(0, 0, 0, .15); }
+  .tile .side:hover { color: var(--amber); background: rgba(0, 0, 0, .15); }
+  .editor-wrap { display: grid; grid-template-columns: minmax(0, 760px) minmax(220px, 300px); gap: 16px; align-items: start; }
+  @media (max-width: 960px) { .editor-wrap { grid-template-columns: 1fr; } }
+  #draftBox { border-style: dashed; min-height: 150px; }
+  #draftBox.over { border-color: var(--amber); }
+  .deck.small { --cols: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deck.small .tile { opacity: .8; }
+  .draft-empty { margin: 10px 4px 2px; font-size: 13px; color: var(--t-muted); }
+  .tile.dragging { opacity: .35; }
+  .tile.before::before, .tile.after::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 4px; border-radius: 2px; background: var(--amber); }
+  .tile.before::before { left: -7px; }
+  .tile.after::after { right: -7px; }
+  .tile.add { background: transparent; border: 2px dashed var(--t-muted); color: var(--t-muted); cursor: pointer; font-size: 14px; }
+  .tile.add:hover { color: var(--amber); border-color: var(--amber); }
+  .tile:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -92,8 +139,18 @@
 
   <section id="boutons">
     <h2>Boutons</h2>
-    <p class="hint">Les boutons de la tablette, dans l'ordre d'affichage. Les changements s'appliquent sur tous les appareils dès l'enregistrement.</p>
-    <div class="list" id="btnList"></div>
+    <p class="hint">Voici ce que verra la tablette. <b>Glisse un bouton</b> pour le déplacer, clique dessus pour le modifier, ✕ pour le supprimer (au clavier : Entrée pour modifier, Alt + flèches pour déplacer). Les changements s'appliquent sur tous les appareils dès l'enregistrement.</p>
+    <div class="editor-wrap">
+      <div class="tablet" id="tablet">
+        <div class="tablet-head"><span>Aperçu de la tablette</span><span id="tabletInfo"></span></div>
+        <div class="deck" id="btnList"></div>
+      </div>
+      <div class="tablet dropzone" id="draftBox">
+        <div class="tablet-head"><span>Brouillon</span><span id="draftInfo"></span></div>
+        <div class="deck small" id="draftList"></div>
+        <p class="draft-empty" id="draftEmpty">Glisse ici un bouton pour le mettre de côté : il disparaît de la tablette mais garde tous ses réglages. Glisse-le dans la tablette pour le remettre (ou clique sur ⇠).</p>
+      </div>
+    </div>
     <div class="tools">
       <button class="btn" id="addBtn">+ Ajouter un bouton</button>
       <select id="tplSelect" style="width:auto"><option value="">+ Ajouter un modèle…</option></select>
@@ -104,7 +161,10 @@
     <h2>Interrupteurs</h2>
     <p class="hint">Voyants à deux positions (ex. micro coupé / actif) : chaque appui envoie le même raccourci clavier.</p>
     <div class="list" id="togList"></div>
-    <div class="tools"><button class="btn" id="addTog">+ Ajouter un interrupteur</button></div>
+    <div class="tools">
+      <button class="btn" id="addTog">+ Ajouter un interrupteur</button>
+      <select id="tplToggle" style="width:auto"><option value="">+ Ajouter un modèle…</option></select>
+    </div>
   </section>
 
   <section id="affichage">
@@ -113,8 +173,11 @@
       <div class="card">
         <label class="f">Thème</label>
         <select id="theme"><option value="dark">Sombre</option><option value="light">Clair</option></select>
+        <label class="f" for="preset">Thème prêt à l'emploi</label>
+        <select id="preset"></select>
         <label class="f">Couleur d'accent</label>
         <input type="color" id="accent">
+        <div id="colorList"></div>
         <label class="f">Colonnes de boutons</label>
         <select id="columns"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
       </div>
@@ -128,15 +191,16 @@
   </section>
 
   <section id="son">
-    <h2>Son d'une application</h2>
-    <p class="hint">Permet aux boutons de volume de régler le son d'une seule appli (ex. Apple Music, Spotify) grâce à l'interrupteur « Son sur… ».</p>
-    <div class="card">
-      <label class="check"><input type="checkbox" id="audioOn"> Activer</label>
-      <div id="audioFields">
-        <label class="f">Nom affiché</label><input type="text" id="audioLabel" placeholder="Spotify">
-        <label class="f">Nom du programme (sans .exe ; plusieurs : séparés par des virgules)</label>
-        <input type="text" id="audioProc" placeholder="Spotify">
-      </div>
+    <h2>Son</h2>
+    <h3 style="margin:10px 0 4px;font-size:17px">Son d'une application</h3>
+    <p class="hint">Permet aux boutons de volume de régler le son d'une seule appli (ex. Apple Music, Spotify, Discord). Avec plusieurs applis, l'interrupteur « Son sur… » de la tablette passe de l'une à l'autre : Windows, puis chaque appli, puis Windows…</p>
+    <div class="list" id="audioList"></div>
+    <div class="tools"><button class="btn" id="addAudio">+ Ajouter une appli</button></div>
+    <h3 style="margin:22px 0 4px;font-size:17px;display:flex;align-items:center;gap:10px"><label class="check" style="margin:0" title="Décoché : l'interrupteur « Volume de … en … » disparaît de la tablette (la valeur est gardée)"><input type="checkbox" id="bigStepOn"> Volume par grands pas</label></h3>
+    <p class="hint">L'interrupteur « Volume de 10 en 10 » de la tablette fait changer le son par grands pas. Choisis ici la valeur (en %) : elle s'applique à tous les boutons de volume.</p>
+    <div class="card" style="max-width:340px">
+      <label class="f" for="bigStepValue" style="margin-top:0">Volume de … en … (%)</label>
+      <input type="number" id="bigStepValue" min="1" max="50" step="1" value="10">
     </div>
   </section>
 
@@ -207,6 +271,21 @@
       <label class="f" for="fDouble">Double appui (deux appuis rapides)</label>
       <select id="fDouble"></select>
     </div>
+    <div id="logoBlock">
+      <label class="check"><input type="checkbox" id="fLogo"> Utiliser le vrai logo (trouvé tout seul, le même sur tous les appareils, mis à jour tout seul)</label>
+      <div class="logo-pick" id="logoPick">
+        <label class="f" for="fLogoApp">Logo d'une autre appli installée (facultatif)</label>
+        <input id="fLogoApp" list="appList" placeholder="Tape un nom : Spotify, Discord, Paramètres…" autocomplete="off">
+        <datalist id="appList"></datalist>
+        <div class="row">
+          <button class="btn" type="button" id="fLogoFile">Image personnalisée…</button>
+          <button class="btn" type="button" id="fLogoClear" hidden>Retirer l'image</button>
+          <img id="fLogoPreview" alt="" hidden>
+          <input type="file" id="fLogoInput" accept="image/png,image/jpeg,image/webp" hidden>
+        </div>
+      </div>
+    </div>
+    <label class="check" id="confirmBlock"><input type="checkbox" id="fConfirm"> Demander « Tu es sûr ? » sur la tablette avant d'exécuter</label>
     <p class="warn" id="dlgErr"></p>
     <div class="dlg-actions">
       <button class="btn" value="cancel" formnovalidate>Annuler</button>
@@ -226,19 +305,22 @@
 </dialog>
 
 <script src="icons.js"></script>
+<script src="colors.js"></script>
 <script>
   const $ = (id) => document.getElementById(id);
+  let logos = {};          // vrais logos des boutons (id -> image), calculés par le PC
   let cfg = null;          // configuration en cours d'édition (contenu brut de config.json)
   let savedText = '';      // pour savoir s'il y a des changements non enregistrés
   let templates = [];
   const SHOWS = [['cpu', 'Processeur'], ['gpu', 'Carte graphique'], ['ram', 'Mémoire vive'], ['power', 'Consommation'],
-    ['cpuChart', 'Graphique processeur'], ['gpuChart', 'Graphique carte graphique'], ['netChart', 'Graphique Wi-Fi']];
+    ['cpuChart', 'Graphique processeur'], ['gpuChart', 'Graphique carte graphique'], ['netChart', 'Graphique réseau']];
 
   // ---------- Chargement / enregistrement ----------
   async function load() {
     const r = await fetch('/api/settings', { cache: 'no-store' });
     const data = await r.json();
     cfg = data.config;
+    logos = data.logos || {};
     templates = data.templates || [];
     $('ver').textContent = 'version ' + data.version;
     $('path').textContent = data.configPath;
@@ -267,6 +349,10 @@
       setTimeout(() => { location.href = 'http://localhost:' + port + '/settings'; }, 5000);
     } else {
       setState('Enregistré et appliqué sur tous les appareils.');
+      // Le PC cherche les nouveaux logos en arrière-plan : on les récupère un instant après
+      setTimeout(async () => {
+        try { logos = (await (await fetch('/api/settings', { cache: 'no-store' })).json()).logos || {}; renderButtons(); } catch {}
+      }, 3000);
     }
   });
   window.addEventListener('beforeunload', (e) => { if (cfg && JSON.stringify(cfg) !== savedText) e.preventDefault(); });
@@ -362,10 +448,19 @@
     }
   }
 
-  function row(icon, title, sub, acts, color) {
+  // check = { on, change(on) } : case « activé » à côté du nom. Décochée = brouillon : réglages gardés, rien sur la tablette.
+  function row(icon, title, sub, acts, color, check) {
     const el = document.createElement('div');
-    el.className = 'row';
-    el.innerHTML = `<div class="ico"${color ? ` style="color:${color}"` : ''}>${icon}</div><div class="txt"><b></b><span></span></div><div class="acts"></div>`;
+    el.className = 'row' + (check && !check.on ? ' off' : '');
+    if (check) {
+      const lab = document.createElement('label'); lab.className = 'en';
+      lab.title = check.on ? 'Activé : affiché sur la tablette (décoche pour mettre de côté)' : 'Désactivé (brouillon) : coche pour l\'activer';
+      lab.innerHTML = '<input type="checkbox">';
+      const cb = lab.firstChild; cb.checked = !!check.on; cb.setAttribute('aria-label', `Activer ${title}`);
+      cb.addEventListener('change', () => check.change(cb.checked));
+      el.append(lab);
+    }
+    el.insertAdjacentHTML('beforeend', `<div class="ico"${color ? ` style="color:${color}"` : ''}>${icon}</div><div class="txt"><b></b><span></span></div><div class="acts"></div>`);
     el.querySelector('b').textContent = title;
     el.querySelector('.txt span').textContent = sub;
     for (const [label, fn, cls, disabled] of acts) {
@@ -379,24 +474,113 @@
 
   function move(list, i, d) { const [x] = list.splice(i, 1); list.splice(i + d, 0, x); }
 
-  function renderButtons() {
+  // Aperçu de la tablette + brouillon. Un bouton « brouillon » (draft: true) garde tous ses réglages
+  // mais n'est pas envoyé à la tablette : on le glisse dans la tablette quand on en a besoin, et on le remet de côté ensuite.
+  let dragFrom = null; // index (dans cfg.buttons) du bouton qu'on glisse
+  // Déplace le bouton `from` à la position d'insertion `to` (dans la liste d'origine) ; draft = vers le brouillon ou vers la tablette
+  function place(from, to, draft) {
     const list = cfg.buttons;
-    $('btnList').replaceChildren(...list.map((b, i) => row(iconHtml(b.icon), b.label, describe(b.action) + describeDouble(b), [
-      ['Modifier', () => editItem('button', i)],
-      ['↑', () => { move(list, i, -1); renderButtons(); changed(); }, '', i === 0],
-      ['↓', () => { move(list, i, 1); renderButtons(); changed(); }, '', i === list.length - 1],
-      ['Supprimer', () => { if (confirm(`Supprimer le bouton « ${b.label} » ?`)) { list.splice(i, 1); renderButtons(); changed(); } }, 'danger'],
-    ], b.color)));
-    if (!list.length) $('btnList').innerHTML = '<p class="hint">Aucun bouton.</p>';
+    const [x] = list.splice(from, 1);
+    list.splice(from < to ? to - 1 : to, 0, x);
+    if (draft) x.draft = true; else delete x.draft;
+    renderButtons(); changed();
   }
+  function clearMarks() { for (const t of document.querySelectorAll('.tile.before, .tile.after, .dropzone.over')) t.classList.remove('before', 'after', 'over'); }
+  const isDraft = (b) => b.draft === true;
+
+  function makeTile(b, i, inDraft, cols) {
+    const list = cfg.buttons;
+    const el = document.createElement('div');
+    el.className = 'tile'; el.draggable = true; el.tabIndex = 0; el.setAttribute('role', 'button');
+    el.title = `${b.label} : ${describe(b.action)}${describeDouble(b)}`;
+    if (b.color) el.style.setProperty('--btn-color', b.color);
+    el.innerHTML = `<span class="icon">${b.logoImage || (b.logo && logos[b.id]) ? `<img class="logo" alt="" src="${b.logoImage || logos[b.id]}">` : iconHtml(b.icon) || ''}</span><span class="label"></span>`;
+    el.querySelector('.label').textContent = b.label;
+    if (b.action?.type === 'volume') { // comme sur la tablette : « Système · ±2 % »
+      const t = document.createElement('span'); t.className = 'target';
+      t.textContent = b.action.op === 'mute' ? 'Système' : `Système · ±${b.action.step || 2} %`;
+      el.append(t);
+    }
+    if (describeDouble(b)) { const g = document.createElement('span'); g.className = 'badge'; g.textContent = '2×'; el.append(g); }
+    const mk = (cls, text, title, fn) => {
+      const x = document.createElement('button');
+      x.type = 'button'; x.className = 'mini ' + cls; x.textContent = text; x.title = title; x.setAttribute('aria-label', `${title} : ${b.label}`);
+      x.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+      el.append(x);
+    };
+    mk('del', '✕', 'Supprimer', () => { if (confirm(`Supprimer le bouton « ${b.label} » ?`)) { list.splice(i, 1); renderButtons(); changed(); } });
+    mk('side', inDraft ? '⇠' : '⇢', inDraft ? 'Remettre sur la tablette' : 'Mettre de côté (brouillon)', () => place(i, inDraft ? list.length : list.length, !inDraft));
+    el.addEventListener('click', () => editItem('button', i));
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editItem('button', i); }
+      else if (e.altKey && e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        const group = list.map((x, k) => k).filter((k) => isDraft(list[k]) === inDraft); // les boutons du même côté
+        const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' ? -cols : cols;
+        const pos = group.indexOf(i), np = Math.max(0, Math.min(group.length - 1, pos + step));
+        if (np === pos) return;
+        move(list, i, group[np] - i); renderButtons(); changed();
+        const where = inDraft ? $('draftList') : $('btnList');
+        where.children[np]?.focus();
+      }
+    });
+    el.addEventListener('dragstart', (e) => { dragFrom = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', b.label); });
+    el.addEventListener('dragend', () => { dragFrom = null; el.classList.remove('dragging'); clearMarks(); });
+    const after = (e) => { const r = el.getBoundingClientRect(); return e.clientX > r.left + r.width / 2; };
+    el.addEventListener('dragover', (e) => {
+      if (dragFrom === null) return;
+      e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move';
+      const a = after(e); clearMarks(); el.classList.add(a ? 'after' : 'before');
+    });
+    el.addEventListener('drop', (e) => {
+      if (dragFrom === null) return;
+      e.preventDefault(); e.stopPropagation();
+      const from = dragFrom, a = after(e); dragFrom = null; clearMarks();
+      place(from, a ? i + 1 : i, inDraft);
+    });
+    return el;
+  }
+
+  // Zone de dépôt « à la fin » (case + Ajouter, fond du brouillon)
+  function dropEnd(el, draft) {
+    el.addEventListener('dragover', (e) => { if (dragFrom !== null) { e.preventDefault(); clearMarks(); el.classList.add('over'); if (el.classList.contains('tile')) el.classList.add('before'); } });
+    el.addEventListener('dragleave', () => el.classList.remove('over', 'before'));
+    el.addEventListener('drop', (e) => { if (dragFrom === null) return; e.preventDefault(); const from = dragFrom; dragFrom = null; clearMarks(); place(from, cfg.buttons.length, draft); });
+  }
+
+  function renderButtons() {
+    const list = cfg.buttons, deck = $('btnList'), side = $('draftList');
+    const cols = Math.min(6, Math.max(2, Number(cfg.display?.columns) || 3));
+    const TMAP = { '--rack': '--t-rack', '--key': '--t-key', '--key-top': '--t-top', '--key-bottom': '--t-bottom', '--text-primary': '--t-text', '--text-secondary': '--t-text2', '--text-muted': '--t-muted' };
+    const custom = PcDeckColors.vars(cfg.display);
+    for (const id of ['tablet', 'draftBox']) {
+      $(id).classList.toggle('light', cfg.display?.theme === 'light');
+      for (const t of Object.values(TMAP)) $(id).style.removeProperty(t); // aperçu aux couleurs choisies
+      for (const [v, t] of Object.entries(TMAP)) if (custom[v]) $(id).style.setProperty(t, custom[v]);
+    }
+    deck.style.setProperty('--cols', cols);
+    const active = [], drafts = [];
+    list.forEach((b, i) => (isDraft(b) ? drafts : active).push([b, i]));
+    $('tabletInfo').textContent = `${active.length} bouton${active.length > 1 ? 's' : ''} · ${cols} colonnes`;
+    $('draftInfo').textContent = drafts.length ? `${drafts.length} de côté` : '';
+    const add = document.createElement('div');
+    add.className = 'tile add'; add.tabIndex = 0; add.setAttribute('role', 'button'); add.textContent = '+ Ajouter';
+    add.addEventListener('click', () => $('addBtn').click());
+    add.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('addBtn').click(); } });
+    dropEnd(add, false);
+    deck.replaceChildren(...active.map(([b, i]) => makeTile(b, i, false, cols)), add);
+    side.replaceChildren(...drafts.map(([b, i]) => makeTile(b, i, true, 2)));
+    $('draftEmpty').hidden = drafts.length > 0;
+  }
+  dropEnd($('draftBox'), true);
 
   function renderToggles() {
     cfg.toggles = cfg.toggles || [];
     const list = cfg.toggles;
-    $('togList').replaceChildren(...list.map((t, i) => row(iconHtml(t.style === 'mic' ? 'mic' : 'power'), t.label, describe(t.action), [
+    $('togList').replaceChildren(...list.map((t, i) => row(iconHtml(t.style === 'mic' ? 'mic' : 'power'), t.label, describe(t.action) + (t.draft ? ' · désactivé' : ''), [
       ['Modifier', () => editItem('toggle', i)],
       ['Supprimer', () => { if (confirm(`Supprimer « ${t.label} » ?`)) { list.splice(i, 1); renderToggles(); changed(); } }, 'danger'],
-    ])));
+    ], null, { on: !t.draft, change: (on) => { if (on) delete t.draft; else t.draft = true; renderToggles(); changed(); } })));
     if (!list.length) $('togList').innerHTML = '<p class="hint">Aucun interrupteur.</p>';
   }
 
@@ -413,7 +597,55 @@
     if (!devices.length) $('devList').innerHTML = '<p class="hint">Aucun appareil. Utilise « Connecter un appareil » en haut de la page.</p>';
   }
 
+  // Grand pas du volume : même valeur pour tous les boutons de volume
+  const volumeButtons = () => cfg.buttons.filter((b) => b.action?.type === 'volume' && b.action.op !== 'mute');
+  const bigStepNow = () => volumeButtons().find((b) => b.action.bigStep)?.action.bigStep || 10;
+  $('bigStepValue').addEventListener('input', () => {
+    const v = Number($('bigStepValue').value);
+    if (!Number.isInteger(v) || v < 1 || v > 50) return; // valeur invalide : on attend une valeur correcte
+    for (const b of volumeButtons()) b.action.bigStep = v;
+    changed();
+  });
+  // Applis dont on règle le son (cfg.audioApps ; l'ancien cfg.audioApp, une seule, est repris)
+  function renderAudio() {
+    if (cfg.audioApp && !cfg.audioApps) cfg.audioApps = [cfg.audioApp];
+    delete cfg.audioApp;
+    cfg.audioApps = cfg.audioApps || [];
+    $('addAudio').disabled = cfg.audioApps.length >= 8;
+    $('audioList').replaceChildren(...cfg.audioApps.map((app, i) => {
+      const el = document.createElement('div'); el.className = 'card' + (app.draft ? ' off' : '');
+      el.innerHTML = '<label class="check" style="margin-top:0"><input type="checkbox" data-k="on"> Activée <small class="muted">(décochée = brouillon : gardée mais pas sur la tablette)</small></label>' +
+        '<label class="f" style="margin-top:0">Nom affiché</label><input type="text" data-k="label" placeholder="Spotify">' +
+        '<label class="f">Nom du programme (sans .exe ; plusieurs : séparés par des virgules)</label><input type="text" data-k="proc" placeholder="Spotify">' +
+        '<div class="tools"><button class="btn danger" type="button">Supprimer</button></div>';
+      const label = el.querySelector('[data-k=label]'), proc = el.querySelector('[data-k=proc]');
+      label.value = app.label || ''; proc.value = (app.processes || []).join(', ');
+      const on = el.querySelector('[data-k=on]'); on.checked = !app.draft;
+      const sync = () => {
+        const procs = proc.value.split(',').map((s) => s.trim().replace(/\.exe$/i, '')).filter(Boolean);
+        cfg.audioApps[i] = { label: label.value.trim() || procs[0] || 'Appli', processes: procs.length ? procs : ['Spotify'], ...(on.checked ? {} : { draft: true }) };
+        el.classList.toggle('off', !on.checked);
+        changed();
+      };
+      label.addEventListener('input', sync); proc.addEventListener('input', sync); on.addEventListener('change', sync);
+      el.querySelector('button').addEventListener('click', () => { cfg.audioApps.splice(i, 1); renderAudio(); changed(); });
+      return el;
+    }));
+  }
+  $('addAudio').addEventListener('click', () => {
+    cfg.audioApps.push({ label: 'Spotify', processes: ['Spotify'] });
+    renderAudio(); changed();
+    $('audioList').lastElementChild.querySelector('input').select();
+  });
+  $('bigStepOn').addEventListener('change', () => {
+    if ($('bigStepOn').checked) delete cfg.bigStepEnabled; else cfg.bigStepEnabled = false;
+    $('bigStepValue').disabled = !$('bigStepOn').checked;
+    changed();
+  });
   function renderAll(devices) {
+    $('bigStepValue').value = bigStepNow();
+    $('bigStepOn').checked = cfg.bigStepEnabled !== false;
+    $('bigStepValue').disabled = cfg.bigStepEnabled === false;
     cfg.display = cfg.display || {};
     const d = cfg.display;
     d.show = d.show || {};
@@ -422,6 +654,8 @@
     if (devices) renderDevices(devices);
     $('theme').value = d.theme === 'light' ? 'light' : 'dark';
     $('accent').value = d.accent || '#f2a33a';
+    d.colors = d.colors || {};
+    renderColors();
     $('columns').value = String(d.columns || 3);
     $('refresh').value = String(d.refreshMs || 1000);
     $('shows').replaceChildren(...SHOWS.map(([k, label]) => {
@@ -432,25 +666,65 @@
       cb.addEventListener('change', () => { d.show[k] = cb.checked; changed(); });
       return l;
     }));
-    $('audioOn').checked = !!cfg.audioApp;
-    $('audioFields').hidden = !cfg.audioApp;
-    $('audioLabel').value = cfg.audioApp?.label || '';
-    $('audioProc').value = (cfg.audioApp?.processes || []).join(', ');
+    renderAudio();
     $('autostart').checked = cfg.autostart !== false;
     $('usb').checked = cfg.usb?.enabled !== false;
     $('port').value = cfg.server?.port || 8787;
     $('remoteOn').checked = cfg.remoteControl?.enabled === true;
     $('remotePilot').checked = cfg.remoteControl?.enabled === true && cfg.remoteControl?.viewOnly !== true;
     $('remotePilot').disabled = !$('remoteOn').checked;
-    $('tplSelect').length = 1;
-    for (const t of templates) $('tplSelect').add(new Option(t.label, t.id));
+    // Les modèles d'interrupteurs (ex. Micro Discord) sont proposés dans « Interrupteurs », les autres dans « Boutons »
+    $('tplSelect').length = 1; $('tplToggle').length = 1;
+    for (const t of templates) ($(t.buttons?.length ? 'tplSelect' : 'tplToggle')).add(new Option(t.label, t.id));
+    $('tplToggle').hidden = $('tplToggle').length < 2;
+  }
+
+  // ---------- Couleurs personnalisées et thèmes prêts à l'emploi ----------
+  // [clé, libellé, couleur du thème sombre, couleur du thème clair]
+  const COLORS = [
+    ['background', 'Fond', '#1b1d1f', '#e8e5de'], ['keys', 'Touches (et fond des logos)', '#25282b', '#f7f5f0'],
+    ['text', 'Texte', '#e6e2d8', '#1b1d1f'], ['down', 'Courbe de réception', '#199e70', '#199e70'], ['up', "Courbe d'envoi", '#c98500', '#c98500'],
+  ];
+  const NONE = { background: '', keys: '', text: '', down: '', up: '' };
+  const PRESETS = [
+    ['graphite', 'Graphite (par défaut)', 'dark', '#f2a33a', NONE],
+    ['papier', 'Papier (clair)', 'light', '#d9822b', NONE],
+    ['minuit', 'Minuit', 'dark', '#5aa9ff', { background: '#0e1524', keys: '#18233a', text: '#dbe6ff', down: '#3fb6a8', up: '#e0a53a' }],
+    ['foret', 'Forêt', 'dark', '#6fcf7a', { background: '#111912', keys: '#1b2a1f', text: '#e2ecdf', down: '#4fc48a', up: '#d9a441' }],
+    ['violet', 'Violet', 'dark', '#b07cff', { background: '#16111e', keys: '#241a33', text: '#ece3f7', down: '#5fc4b0', up: '#f0a35a' }],
+    ['rose', 'Rose', 'dark', '#ff6f9c', { background: '#1d1216', keys: '#2e1b23', text: '#f7e4ea', down: '#4fb89a', up: '#f2a33a' }],
+  ];
+  $('preset').replaceChildren(new Option('Choisir un thème…', ''), ...PRESETS.map(([id, label]) => new Option(label, id)));
+  $('preset').addEventListener('change', () => {
+    const p = PRESETS.find((x) => x[0] === $('preset').value);
+    $('preset').value = '';
+    if (!p) return;
+    const d = cfg.display;
+    d.theme = p[2]; d.accent = p[3]; d.colors = { ...p[4] };
+    $('theme').value = d.theme; $('accent').value = d.accent;
+    renderColors(); renderButtons(); changed();
+  });
+  function renderColors() {
+    const d = cfg.display;
+    $('colorList').replaceChildren(...COLORS.map(([k, label, dark, light]) => {
+      const row = document.createElement('div'); row.className = 'color-row';
+      const name = document.createElement('span'); name.textContent = label;
+      const input = document.createElement('input'); input.type = 'color';
+      input.value = d.colors[k] || (d.theme === 'light' ? light : dark);
+      const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'btn'; reset.textContent = 'Par défaut';
+      reset.hidden = !d.colors[k];
+      input.addEventListener('input', () => { d.colors[k] = input.value; reset.hidden = false; renderButtons(); changed(); });
+      reset.addEventListener('click', () => { d.colors[k] = ''; input.value = d.theme === 'light' ? light : dark; reset.hidden = true; renderButtons(); changed(); });
+      row.append(name, input, reset);
+      return row;
+    }));
   }
 
   // ---------- Réglages simples ----------
   const bind = (id, ev, fn) => $(id).addEventListener(ev, () => { fn($(id)); changed(); });
-  bind('theme', 'change', (el) => { cfg.display.theme = el.value; });
+  bind('theme', 'change', (el) => { cfg.display.theme = el.value; renderColors(); renderButtons(); });
   bind('accent', 'input', (el) => { cfg.display.accent = el.value; });
-  bind('columns', 'change', (el) => { cfg.display.columns = Number(el.value); });
+  bind('columns', 'change', (el) => { cfg.display.columns = Number(el.value); renderButtons(); });
   bind('refresh', 'change', (el) => { cfg.display.refreshMs = Number(el.value); });
   bind('autostart', 'change', (el) => { cfg.autostart = el.checked; });
   bind('usb', 'change', (el) => { cfg.usb = { ...(cfg.usb || {}), enabled: el.checked }; });
@@ -460,25 +734,26 @@
     $('remotePilot').disabled = !el.checked;
   });
   bind('remotePilot', 'change', (el) => { cfg.remoteControl = { ...(cfg.remoteControl || {}), viewOnly: !el.checked }; });
-  const audioSync = () => {
-    if (!$('audioOn').checked) { delete cfg.audioApp; $('audioFields').hidden = true; return; }
-    $('audioFields').hidden = false;
-    const procs = $('audioProc').value.split(',').map((s) => s.trim().replace(/\.exe$/i, '')).filter(Boolean);
-    cfg.audioApp = { label: $('audioLabel').value.trim() || procs[0] || 'Appli', processes: procs.length ? procs : ['Spotify'] };
-  };
-  for (const id of ['audioOn', 'audioLabel', 'audioProc']) bind(id, id === 'audioOn' ? 'change' : 'input', audioSync);
 
   // ---------- Modèles ----------
-  $('tplSelect').addEventListener('change', () => {
-    const t = templates.find((x) => x.id === $('tplSelect').value);
-    $('tplSelect').value = '';
+  for (const sel of [$('tplSelect'), $('tplToggle')]) sel.addEventListener('change', () => {
+    const t = templates.find((x) => x.id === sel.value);
+    sel.value = '';
     if (!t) return;
     const ids = new Set([...cfg.buttons, ...(cfg.toggles || [])].map((x) => x.id));
+    if (t.skipExisting) { // « Boutons de base » : on ajoute seulement ceux qui manquent
+      const missing = (t.buttons || []).filter((x) => !ids.has(x.id));
+      if (!missing.length) { alert('Tous les boutons de base sont déjà là.'); return; }
+      cfg.buttons.push(...structuredClone(missing));
+      renderAll(); changed();
+      alert(`${missing.length} bouton${missing.length > 1 ? 's' : ''} ajouté${missing.length > 1 ? 's' : ''} : ${missing.map((x) => x.label).join(', ')}.`);
+      return;
+    }
     const clash = [...(t.buttons || []), ...(t.toggles || [])].filter((x) => ids.has(x.id));
-    if (clash.length) { alert(`« ${t.label} » est déjà dans tes boutons.`); return; }
+    if (clash.length) { alert(`« ${t.label} » est déjà ajouté.`); return; }
     cfg.buttons.push(...structuredClone(t.buttons || []));
     cfg.toggles = [...(cfg.toggles || []), ...structuredClone(t.toggles || [])];
-    if (t.audioApp) cfg.audioApp = structuredClone(t.audioApp);
+    if (t.audioApp && !cfg.audioApps.some((a) => a.label === t.audioApp.label)) cfg.audioApps.push(structuredClone(t.audioApp));
     if (t.description) alert(`${t.label} ajouté.\n\n${t.description}`);
     renderAll();
     changed();
@@ -590,10 +865,54 @@
     $('fType').value = kind === 'toggle' ? 'keys' : kindNow;
     renderFields($('fType').value, item?.action);
     renderPress($('fType').value, item);
+    $('confirmBlock').hidden = kind !== 'button';
+    $('fConfirm').checked = item ? (item.confirm ?? item.action?.type === 'lock') : $('fType').value === 'lock';
+    $('fLogo').checked = item ? item.logo === true : logoOk(); // nouveau bouton de site ou de programme : logo par défaut
+    $('logoBlock').hidden = kind !== 'button';
+    $('fLogoApp').value = item?.logoApp || '';
+    editing.logoImage = item?.logoImage || '';
+    showLogoImage();
+    loadAppList();
     $('dlgErr').textContent = '';
     $('dlg').showModal();
   }
-  $('fType').addEventListener('change', () => { renderFields($('fType').value, null); renderPress($('fType').value, null); autoIcon(); });
+  // Un logo existe pour un site, un programme, un fichier, un onglet, la fenêtre d'un programme
+  const logoOk = () => editing?.kind === 'button' && ['web', 'program', 'file', 'tab', 'window'].includes($('fType').value);
+  $('fType').addEventListener('change', () => { renderFields($('fType').value, null); renderPress($('fType').value, null); autoIcon(); $('fConfirm').checked = $('fType').value === 'lock'; if (editing.index === null) $('fLogo').checked = logoOk(); });
+
+  // Logo : appli installée choisie par son nom, ou image personnalisée (réduite à 128 px pour rester légère)
+  let appListLoaded = false;
+  async function loadAppList() {
+    if (appListLoaded) return;
+    appListLoaded = true;
+    try {
+      const { apps } = await (await fetch('/api/settings/apps')).json();
+      $('appList').replaceChildren(...apps.map((n) => new Option(n)));
+    } catch { appListLoaded = false; }
+  }
+  function showLogoImage() {
+    $('fLogoPreview').hidden = $('fLogoClear').hidden = !editing.logoImage;
+    if (editing.logoImage) $('fLogoPreview').src = editing.logoImage;
+  }
+  $('fLogoFile').addEventListener('click', () => $('fLogoInput').click());
+  $('fLogoClear').addEventListener('click', () => { editing.logoImage = ''; showLogoImage(); });
+  $('fLogoInput').addEventListener('change', () => {
+    const file = $('fLogoInput').files[0];
+    $('fLogoInput').value = '';
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 128 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      editing.logoImage = c.toDataURL('image/png');
+      showLogoImage();
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => { $('dlgErr').textContent = 'Cette image ne peut pas être lue.'; };
+    img.src = URL.createObjectURL(file);
+  });
 
   // ---------- Détection automatique du type ----------
   // D'après ce qui est collé : site, programme (.exe) ou fichier/dossier
@@ -654,7 +973,7 @@
         ...(v.screen && v.screen !== 'same' ? { screen: v.screen } : {}) };
       case 'store': return { type: 'app', appId: v.appId };
       case 'keys': return { type: 'keys', keys: v.keys };
-      case 'volume': return { type: 'volume', op: v.op, ...(v.op !== 'mute' ? { step: Number(v.step) || 2, bigStep: old?.bigStep || 10 } : {}) };
+      case 'volume': return { type: 'volume', op: v.op, ...(v.op !== 'mute' ? { step: Number(v.step) || 2, bigStep: old?.bigStep || bigStepNow() } : {}) };
       case 'lock': return { type: 'lock' };
       case 'window': return { type: 'window', process: v.process.split(',').map((s) => s.trim().replace(/\.exe$/i, '')).filter(Boolean), screen: v.screen,
         ...(v.ifNotRunning ? { ifNotRunning: { type: 'open', target: v.ifNotRunning } } : {}) };
@@ -681,9 +1000,17 @@
       item.id = id;
     }
     item.action = buildAction(kind, old?.action);
-    if (editing.kind === 'button') applyPress(item, kind);
+    if (editing.kind === 'button') {
+      applyPress(item, kind);
+      // « Tu es sûr ? » : par défaut seulement pour verrouiller ; on n'écrit le choix que s'il change ce défaut
+      if ($('fConfirm').checked !== (item.action.type === 'lock')) item.confirm = $('fConfirm').checked; else delete item.confirm;
+    }
     if (editing.kind === 'button') {
       item.icon = editing.icon || '';
+      const logoApp = $('fLogoApp').value.trim();
+      if (logoApp) item.logoApp = logoApp; else delete item.logoApp;
+      if (editing.logoImage) item.logoImage = editing.logoImage; else delete item.logoImage;
+      if ($('fLogo').checked || logoApp) item.logo = true; else delete item.logo;
       if ($('fColorOn').checked) item.color = $('fColor').value; else delete item.color;
     } else {
       item.style = $('fStyle').value;
@@ -751,7 +1078,9 @@
   });
   fetch('/api/update').then((r) => r.json()).then(showUpdate).catch(() => {});
 
-  load().catch((e) => setState('Erreur de chargement : ' + e.message, 'err'));
+  load().catch((e) => setState(e instanceof TypeError
+    ? 'PC Deck ne répond pas. Lance « PC Deck » depuis le menu Démarrer, attends 10 secondes, puis recharge cette page (F5).'
+    : 'Erreur de chargement : ' + e.message, 'err'));
 </script>
 </body>
 </html>

@@ -42,7 +42,7 @@
       <label class="audio-switch">
         <input type="checkbox" id="bigStep">
         <span class="switch-track"><span class="switch-thumb"></span></span>
-        <span>Volume de <b>10 en 10</b></span>
+        <span>Volume de <b id="bigStepLabel">10 en 10</b></span>
       </label>
     </div>
     <div class="toggles" id="toggles"></div>
@@ -96,7 +96,7 @@
       </div>
       <div class="card chart-card net-card">
         <div class="card-head">
-          <h2>Wi-Fi <span class="sub">2 min</span></h2>
+          <h2><span id="netTitle">Réseau</span> <span class="sub">2 min</span></h2>
           <div class="legend">
             <span><span class="swatch" style="background:var(--series-1)"></span>Réception <b id="lgDown">—</b></span>
             <span><span class="swatch" style="background:var(--series-2)"></span>Envoi <b id="lgUp">—</b></span>
@@ -162,12 +162,27 @@
   </form>
 </div>
 
+<!-- « Tu es sûr ? » avant une action sensible (ex. verrouiller le PC) -->
+<div class="pair confirm" id="confirmBox" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="pair-box">
+    <h1 id="confirmTitle">Tu es sûr ?</h1>
+    <p id="confirmText"></p>
+    <button type="button" id="confirmYes">Oui</button>
+    <button type="button" id="confirmNo">Annuler</button>
+  </div>
+</div>
+
 <!-- Écran du PC en direct (contrôle à distance) -->
 <div class="remote" id="remote" hidden>
   <div class="remote-bar">
     <button class="remote-key" id="remoteClose" type="button">Fermer</button>
     <div class="remote-mons" id="remoteMons"></div>
     <span class="remote-info" id="remoteInfo"></span>
+    <div class="remote-fps" id="remoteRes" role="group" aria-label="Résolution">
+      <button class="remote-key" type="button" data-res="720">720p</button>
+      <button class="remote-key" type="button" data-res="1080">1080p</button>
+      <button class="remote-key" type="button" data-res="max" title="La plus grande image que cet appareil peut afficher">Max</button>
+    </div>
     <div class="remote-fps" id="remoteFps" role="group" aria-label="Fluidité">
       <button class="remote-key" type="button" data-fps="15" title="Économie d'énergie">Éco 15</button>
       <button class="remote-key" type="button" data-fps="30">Normal 30</button>
@@ -188,6 +203,7 @@
 </div>
 
 <script src="chart.js"></script>
+<script src="colors.js"></script>
 <script src="remote.js"></script>
 <script src="icons.js"></script>
 <script src="app.js"></script>

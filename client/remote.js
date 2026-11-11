@@ -42,9 +42,28 @@ const Remote = (() => {
   }
   showFps();
 
+  // Résolution : 720p, 1080p, ou Max = la plus grande image que cet appareil peut afficher
+  // (ses vrais pixels, jusqu'à 4K ; jamais plus que l'écran du PC, qui n'est pas agrandi).
+  let res = '1080';
+  try { res = localStorage.getItem('pcdeck-res') || '1080'; } catch {}
+  if (!['720', '1080', 'max'].includes(res)) res = '1080';
+  const deviceWidth = () => Math.round(Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1));
+  const widthFor = (r) => (r === '720' ? 1280 : r === '1080' ? 1920 : Math.min(3840, Math.max(1280, deviceWidth())));
+  function showRes() {
+    for (const b of el('remoteRes').children) b.classList.toggle('on', b.dataset.res === res);
+  }
+  for (const b of el('remoteRes').children) {
+    b.addEventListener('click', () => {
+      res = b.dataset.res;
+      try { localStorage.setItem('pcdeck-res', res); } catch {}
+      showRes();
+      start();
+    });
+  }
+  showRes();
+
   function start() {
-    const w = Math.min(1920, Math.round(Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1)));
-    send({ type: 'screen-start', monitor, maxWidth: w, quality: 60, fps });
+    send({ type: 'screen-start', monitor, maxWidth: widthFor(res), quality: 60, fps });
   }
 
   function show() {
@@ -54,7 +73,8 @@ const Remote = (() => {
     clearInterval(fpsTimer);
     fpsTimer = setInterval(() => {
       // Écran immobile : le PC n'envoie rien (une image par seconde pour rester à jour)
-      el('remoteInfo').textContent = !img.src ? 'en attente…' : frames > 1 ? `${frames} img/s` : 'écran immobile';
+      const size = img.naturalWidth ? ` · ${img.naturalWidth}×${img.naturalHeight}` : '';
+      el('remoteInfo').textContent = !img.src ? 'en attente…' : (frames > 1 ? `${frames} img/s` : 'écran immobile') + size;
       frames = 0;
     }, 1000);
   }

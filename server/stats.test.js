@@ -28,5 +28,12 @@ assert.strictEqual(r.gpuLoad, 55);
 assert.strictEqual(r.gpuTemp, 61);
 assert.strictEqual(r.gpuPower, 40);
 
-console.log('Carte graphique : intégrée, dédiée, les deux : OK');
+// Réseau : la carte demandée est suivie ; si LHM ne la connaît pas, la plus active
+const N = (hw, name, value) => ({ id: `/nic/${hw}/throughput/${name === 'Download Speed' ? 8 : 7}`, name, value, hardware: hw });
+const nics = [N('Wi-Fi', 'Download Speed', 0), N('Wi-Fi', 'Upload Speed', 0), N('Ethernet', 'Download Speed', 5e6), N('Ethernet', 'Upload Speed', 1e6)];
+assert.strictEqual(extract(nics, 'Ethernet').netDown, 5e6);
+assert.strictEqual(extract(nics, 'Wi-Fi').netDown, 0);
+assert.strictEqual(extract(nics, 'Ethernet 2').netDown, 5e6, 'nom inconnu : carte la plus active');
+
+console.log('Carte graphique et réseau : OK');
 process.exit(0); // stats.js lance des mesures en arrière-plan
