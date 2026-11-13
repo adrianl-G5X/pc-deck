@@ -49,6 +49,38 @@ function checkAction(action, where, allowMacro = true) {
         fail(where, '"repeat" doit être un nombre entier entre 1 et 50');
       break;
     case 'lock':
+    case 'mic': // couper / remettre le micro de Windows
+    case 'screenoff': // éteindre l'écran (il se rallume à la souris)
+      break;
+    case 'audio': // sortie son : "device" = un nom (ex. « Casque »), vide = la suivante à chaque appui
+      if (a.device !== undefined && typeof a.device !== 'string') fail(where, '"device" doit être un nom de sortie son');
+      a.device = (a.device || '').trim();
+      break;
+    case 'powerplan': // mode d'alimentation de Windows
+      if (!['saver', 'balanced', 'performance'].includes(a.plan)) fail(where, '"plan" doit être "saver", "balanced" ou "performance"');
+      break;
+    case 'brightness': // luminosité (écran d'un PC portable)
+      if (!['up', 'down'].includes(a.op)) fail(where, '"op" doit être "up" ou "down"');
+      break;
+    case 'cycle': // bouton à plusieurs états : chaque appui lance l'étape suivante (ex. « Mode jeu » ↔ « Mode travail »)
+      if (!allowMacro) fail(where, '"cycle" ne s\'utilise pas dans une macro');
+      if (!Array.isArray(a.steps) || a.steps.length < 2 || a.steps.length > 6) fail(where, '"steps" : de 2 à 6 étapes');
+      a.steps = a.steps.map((st, i) => {
+        if (typeof st?.label !== 'string' || !st.label.trim()) fail(`${where}, état ${i + 1}`, '"label" (nom affiché) manquant');
+        return { label: st.label.trim().slice(0, 30), action: checkAction(st.action, `${where}, état ${i + 1}`, true) };
+      });
+      break;
+    case 'http': // requête web : lumières (Home Assistant, Philips Hue), webhooks…
+      if (typeof a.url !== 'string' || !/^https?:\/\/[^\s]+$/i.test(a.url)) fail(where, '"url" doit être une adresse commençant par http:// ou https://');
+      a.method = (a.method || 'POST').toUpperCase();
+      if (!['GET', 'POST', 'PUT'].includes(a.method)) fail(where, '"method" doit être "GET", "POST" ou "PUT"');
+      if (a.body !== undefined && typeof a.body !== 'string') fail(where, '"body" doit être un texte (ex. {"entity_id": "light.salon"})');
+      if (a.token !== undefined && typeof a.token !== 'string') fail(where, '"token" doit être un texte');
+      // Lumière avec son état (Home Assistant) : adresse qui renvoie { "state": "on" | "off" }
+      if (a.stateUrl !== undefined && (typeof a.stateUrl !== 'string' || !/^https?:\/\/\S+$/i.test(a.stateUrl))) fail(where, '"stateUrl" doit être une adresse http(s)');
+      break;
+    case 'power': // éteindre, redémarrer, mettre en veille (la tablette demande toujours « Tu es sûr ? »)
+      if (!['shutdown', 'restart', 'sleep'].includes(a.op)) fail(where, '"op" doit être "shutdown", "restart" ou "sleep"');
       break;
     case 'tab':
       // "url" : adresse à ouvrir ; "match" : modèle des onglets à retrouver (ex. "https://mail.google.com/*")
@@ -91,16 +123,33 @@ function checkAction(action, where, allowMacro = true) {
       if (!Number.isInteger(a.ms) || a.ms < 0 || a.ms > 10000)
         fail(where, '"ms" doit être un nombre entier entre 0 et 10000');
       break;
+    case 'obs': // OBS Studio : scène, enregistrement, direct, micro (ou autre source audio)
+      if (!['scene', 'record', 'stream', 'mute'].includes(a.op)) fail(where, '"op" doit être "scene", "record", "stream" ou "mute"');
+      if (a.op === 'scene' && (typeof a.scene !== 'string' || !a.scene.trim())) fail(where, '"scene" : nom de la scène OBS manquant');
+      if (a.op === 'mute' && (typeof a.input !== 'string' || !a.input.trim())) fail(where, '"input" : nom de la source audio OBS manquant (ex. "Mic/Aux")');
+      break;
+    case 'timer': // minuteur (seconds > 0) ou chronomètre (seconds = 0), géré par le serveur
+      if (!allowMacro) fail(where, '"timer" ne s\'utilise pas dans une macro');
+      if (!Number.isInteger(a.seconds) || a.seconds < 0 || a.seconds > 86400) fail(where, '"seconds" doit être un nombre entier entre 0 (chronomètre) et 86400 (24 h)');
+      break;
+    case 'page': // bouton « dossier » : la tablette affiche une autre page de boutons (rien ne tourne sur le PC)
+      if (!allowMacro) fail(where, '"page" ne s\'utilise pas dans une macro');
+      if (typeof a.page !== 'string' || a.page.trim().length > 30) fail(where, '"page" doit être un nom de page (30 caractères au plus, vide = page principale)');
+      a.page = a.page.trim();
+      break;
     case 'macro':
       if (!allowMacro) fail(where, 'une macro ne peut pas contenir une autre macro');
       if (!Array.isArray(a.steps) || a.steps.length === 0) fail(where, '"steps" (liste d\'étapes) manquant');
       a.steps = a.steps.map((step, i) => checkAction(step, `${where}, étape ${i + 1}`, false));
       break;
     default:
-      fail(where, `type d'action inconnu "${a.type}" (possibles : open, app, newtab, keys, volume, window, tab, lock, macro)`);
+      fail(where, `type d'action inconnu "${a.type}" (possibles : open, app, newtab, keys, volume, window, tab, lock, mic, power, http, audio, screenoff, powerplan, brightness, cycle, obs, page, timer, macro)`);
   }
   return a;
 }
+
+// Outils de la tablette (menu « Outils »)
+const TOOL_IDS = ['windows', 'programs', 'files', 'snapshot', 'clips', 'pad', 'dictate', 'voice', 'device'];
 
 function loadConfig() {
   let raw;
@@ -136,9 +185,14 @@ function parseConfig(raw) {
     if (b.logoApp !== undefined && (typeof b.logoApp !== 'string' || b.logoApp.length > 100)) fail(where, '"logoApp" doit être le nom d\'une appli (texte)');
     if (b.logoImage !== undefined && !(typeof b.logoImage === 'string' && b.logoImage.length <= 300000 && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(b.logoImage)))
       fail(where, '"logoImage" doit être une image PNG, JPEG ou WebP de moins de 200 Ko');
+    if (b.page !== undefined && (typeof b.page !== 'string' || b.page.trim().length > 30)) fail(where, '"page" doit être un nom de page (30 caractères au plus)');
+    // Valeur affichée sous le nom du bouton (mini-widget)
+    if (b.value !== undefined && !['cpu', 'cpuTemp', 'gpu', 'gpuTemp', 'ram', 'volume', 'clock', 'fps'].includes(b.value)) fail(where, '"value" inconnue');
     const action = checkAction(b.action, where);
     return {
       id: b.id,
+      page: (b.page || '').trim(), // page de la tablette ('' = page principale)
+      value: b.value || null, // valeur affichée sous le nom (cpu, cpuTemp, volume, clock…)
       logo: b.logo === true, // vrai logo du programme ou du site à la place de l'icône
       logoApp: b.logoApp || '', // logo d'une autre appli installée (son nom dans le menu Démarrer)
       logoImage: b.logoImage || '', // image personnalisée (a priorité sur le reste)
@@ -223,8 +277,23 @@ function parseConfig(raw) {
     })),
     columns: Number.isInteger(cols) && cols >= 2 && cols <= 6 ? cols : 3,
     refreshMs: [1000, 2000, 5000].includes(d.refreshMs) ? d.refreshMs : 1000,
+    buttonSize: ['small', 'normal', 'large'].includes(d.buttonSize) ? d.buttonSize : 'normal', // hauteur des boutons de la tablette
+    playerFull: d.playerFull !== false, // toucher la carte « morceau en cours » ouvre le lecteur plein écran
+    lyrics: d.lyrics === true, // paroles (cherchées en ligne sur lrclib.net : le titre et l'artiste sont envoyés à ce site)
+    weather: typeof d.weather === 'string' ? d.weather.trim().slice(0, 60) : '', // ville de la météo (vide = pas de météo)
+    // lien iCal secret de l'agenda (vide = pas de rendez-vous)
+    calendar: typeof d.calendar === 'string' && /^(https?|webcal):\/\/\S+$/i.test(d.calendar.trim()) ? d.calendar.trim() : '',
+    lockLayout: d.lockLayout === true, // pas d'appui long sur la tablette (enfants, invités)
+    // Menu « Outils » de la tablette : ordre et noms (Paramètres → Affichage, ou « Modifier » sur la tablette)
+    tools: {
+      order: (Array.isArray(d.tools?.order) ? d.tools.order : []).filter((k) => TOOL_IDS.includes(k)),
+      names: Object.fromEntries(Object.entries(d.tools?.names || {}).filter(([k, v]) => TOOL_IDS.includes(k) && typeof v === 'string' && v.trim())
+        .map(([k, v]) => [k, v.trim().slice(0, 30)])),
+    },
+    standby: [0, 2, 5, 10, 30].includes(d.standby) ? d.standby : 0, // veille (horloge) après N minutes sans toucher
+    vibrate: d.vibrate !== false, // petite vibration à chaque appui (Android, iPhone avec iOS 18+)
     show: Object.fromEntries(
-      ['cpu', 'gpu', 'ram', 'power', 'cpuChart', 'gpuChart', 'netChart'].map((k) => [k, d.show?.[k] !== false])
+      ['media', 'cpu', 'gpu', 'ram', 'power', 'cpuChart', 'gpuChart', 'netChart'].map((k) => [k, d.show?.[k] !== false])
     ),
   };
 
@@ -232,7 +301,50 @@ function parseConfig(raw) {
   const autostart = typeof raw.autostart === 'boolean' ? raw.autostart : null;
 
   const bigStepEnabled = raw.bigStepEnabled !== false; // « Volume par grands pas » (désactivable)
-  return { server, buttons, toggles, audioApp, audioApps, bigStepEnabled, usb, remote, display, autostart };
+  // Profils automatiques : quand ce programme passe au premier plan sur le PC, la tablette affiche cette page
+  if (!Array.isArray(raw.profiles ?? []) || (raw.profiles ?? []).length > 30) fail('profiles', 'doit être une liste de 30 profils au plus');
+  const profiles = (raw.profiles ?? []).map((p, i) => {
+    const where = `profil ${i + 1}`;
+    if (typeof p?.process !== 'string' || !/^[\w .-]+$/.test(p.process.trim())) fail(where, '"process" doit être le nom du programme sans .exe (ex. "steam")');
+    if (typeof p.page !== 'string' || p.page.trim().length > 30) fail(where, '"page" doit être un nom de page (30 caractères au plus)');
+    return { process: p.process.trim().toLowerCase().replace(/\.exe$/, ''), page: p.page.trim() };
+  });
+
+  // Actions programmées : à cette heure (et ces jours-là), le bouton choisi est lancé tout seul
+  if (!Array.isArray(raw.schedules ?? []) || (raw.schedules ?? []).length > 30) fail('schedules', 'doit être une liste de 30 actions programmées au plus');
+  const schedules = (raw.schedules ?? []).map((s, i) => {
+    const where = `action programmée ${i + 1}`;
+    if (typeof s?.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(s.time)) fail(where, '"time" doit être une heure comme "23:00"');
+    const days = s.days ?? 'all';
+    if (!['all', 'week', 'weekend'].includes(days)) fail(where, '"days" doit être "all", "week" (lundi-vendredi) ou "weekend"');
+    const button = buttons.find((b) => b.id === s.button);
+    if (!button) fail(where, `"button" : aucun bouton ne s'appelle "${s.button}"`);
+    if (s.confirm !== undefined && typeof s.confirm !== 'boolean') fail(where, '"confirm" doit valoir true ou false');
+    // Demander « Tu es sûr ? » avant : par défaut pour éteindre / redémarrer / veille et les boutons qui le demandent déjà
+    const confirm = s.confirm ?? (button.action.type === 'power' || button.confirm === true);
+    return { time: s.time, days, button: s.button, confirm };
+  });
+
+  // Dossier où arrivent les photos et fichiers envoyés depuis un appareil (vide = Téléchargements\PC Deck)
+  const uploadDir = typeof raw.uploadDir === 'string' ? raw.uploadDir.trim() : '';
+  if (uploadDir && !/^([a-z]:[\\/]|\\\\)/i.test(uploadDir)) fail('uploadDir', 'doit être un chemin complet de dossier (ex. "D:\\Photos")');
+
+  // Temps d'écran : programme fermé tout seul après N minutes par jour (ex. un jeu)
+  if (!Array.isArray(raw.limits ?? []) || (raw.limits ?? []).length > 30) fail('limits', 'doit être une liste de 30 limites au plus');
+  const limits = (raw.limits ?? []).map((l, i) => {
+    const where = `limite ${i + 1}`;
+    if (typeof l?.process !== 'string' || !/^[\w .-]+$/.test(l.process.trim())) fail(where, '"process" doit être le nom du programme (ex. "fortnite")');
+    if (!Number.isInteger(l.minutes) || l.minutes < 5 || l.minutes > 1440) fail(where, '"minutes" doit être un nombre entier entre 5 et 1440');
+    return { process: l.process.trim().toLowerCase().replace(/\.exe$/, ''), minutes: l.minutes };
+  });
+
+  // OBS Studio (serveur WebSocket intégré) : port et mot de passe
+  const obs = {
+    port: Number.isInteger(raw.obs?.port) && raw.obs.port > 0 && raw.obs.port < 65536 ? raw.obs.port : 4455,
+    password: typeof raw.obs?.password === 'string' ? raw.obs.password : '',
+  };
+
+  return { server, buttons, toggles, audioApp, audioApps, bigStepEnabled, usb, remote, display, autostart, profiles, schedules, uploadDir, limits, obs };
 }
 
 // Relance "onChange" à chaque enregistrement de config.json.

@@ -10,7 +10,7 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node server/network.test.js && node server/config.test.js && node server/stats.test.js && node server/auth.test.js && node server/update.test.js && node server/actions.test.js"
+    "test": "node server/network.test.js && node server/config.test.js && node server/stats.test.js && node server/auth.test.js && node server/update.test.js && node server/actions.test.js && node server/media.test.js && node server/errors.test.js && node server/calendar.test.js && node server/tools.test.js"
   },
   "dependencies": {
     "qrcode-generator": "2.0.4",

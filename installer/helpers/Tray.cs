@@ -99,10 +99,10 @@ class TrayApp : ApplicationContext {
         updTimer.Tick += delegate { updTimer.Interval = 60 * 60 * 1000; CheckUpdate(); };
         updTimer.Start();
 
-        // Aucun appareil encore connecté (juste après l'installation) : page de connexion
+        // Aucun appareil encore connecté (juste après l'installation) : assistant de premier lancement
         if (CountDevices() == 0) {
             System.Windows.Forms.Timer first = new System.Windows.Forms.Timer { Interval = 5000 };
-            first.Tick += delegate { first.Stop(); OpenPage("/connect"); };
+            first.Tick += delegate { first.Stop(); OpenPage("/settings#bienvenue"); }; // assistant : tablette, boutons, thème
             first.Start();
         }
         if (PublicNetworks().Count > 0)

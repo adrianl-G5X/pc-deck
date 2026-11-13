@@ -112,6 +112,391 @@
       ]
     },
     {
+      "id": "pack-jeux",
+      "label": "Pack Gaming (page « Jeux »)",
+      "description": "Une page « Jeux » : Steam, Discord, Xbox Game Bar, enregistrer les 30 dernières secondes, micro, son, capture d'écran. Les FPS s'affichent si RivaTuner est installé (Affichage).",
+      "buttons": [
+        {
+          "id": "jeu-steam",
+          "label": "Steam",
+          "icon": "gamepad",
+          "page": "Jeux",
+          "action": {
+            "type": "open",
+            "target": "steam://open/main"
+          }
+        },
+        {
+          "id": "jeu-discord",
+          "label": "Discord",
+          "icon": "activity",
+          "page": "Jeux",
+          "action": {
+            "type": "open",
+            "target": "discord://"
+          }
+        },
+        {
+          "id": "jeu-gamebar",
+          "label": "Game Bar",
+          "icon": "gamepad",
+          "page": "Jeux",
+          "action": {
+            "type": "keys",
+            "keys": "win+g"
+          }
+        },
+        {
+          "id": "jeu-clip",
+          "label": "Enregistrer 30 s",
+          "icon": "camera",
+          "page": "Jeux",
+          "action": {
+            "type": "keys",
+            "keys": "win+alt+g"
+          }
+        },
+        {
+          "id": "jeu-micro",
+          "label": "Micro",
+          "icon": "mic",
+          "page": "Jeux",
+          "action": {
+            "type": "mic"
+          }
+        },
+        {
+          "id": "jeu-son",
+          "label": "Son on/off",
+          "icon": "volume-x",
+          "page": "Jeux",
+          "action": {
+            "type": "volume",
+            "op": "mute"
+          }
+        },
+        {
+          "id": "jeu-capture",
+          "label": "Capture d'écran",
+          "icon": "camera",
+          "page": "Jeux",
+          "action": {
+            "type": "keys",
+            "keys": "win+alt+printscreen"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pack-musique",
+      "label": "Pack Musique (page « Musique »)",
+      "description": "Une page « Musique » : Spotify, précédent, lecture / pause, suivant, volume. Touche la carte du morceau en cours pour le lecteur plein écran.",
+      "buttons": [
+        {
+          "id": "mus-spotify",
+          "label": "Spotify",
+          "icon": "music",
+          "page": "Musique",
+          "action": {
+            "type": "open",
+            "target": "spotify:"
+          }
+        },
+        {
+          "id": "mus-prec",
+          "label": "Précédent",
+          "icon": "previous",
+          "page": "Musique",
+          "action": {
+            "type": "keys",
+            "keys": "mediaprev"
+          }
+        },
+        {
+          "id": "mus-lecture",
+          "label": "Lecture / pause",
+          "icon": "play",
+          "page": "Musique",
+          "action": {
+            "type": "keys",
+            "keys": "mediaplaypause"
+          }
+        },
+        {
+          "id": "mus-suivant",
+          "label": "Suivant",
+          "icon": "next",
+          "page": "Musique",
+          "action": {
+            "type": "keys",
+            "keys": "medianext"
+          }
+        },
+        {
+          "id": "mus-moins",
+          "label": "Volume −",
+          "icon": "volume-down",
+          "page": "Musique",
+          "action": {
+            "type": "volume",
+            "op": "down",
+            "step": 2
+          }
+        },
+        {
+          "id": "mus-plus",
+          "label": "Volume +",
+          "icon": "volume-up",
+          "page": "Musique",
+          "action": {
+            "type": "volume",
+            "op": "up",
+            "step": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "pack-travail",
+      "label": "Pack Bureautique (page « Travail »)",
+      "description": "Une page « Travail » : explorateur, copier, coller, annuler, capture d'une zone, calculatrice, bureau, verrouiller.",
+      "buttons": [
+        {
+          "id": "bur-explorateur",
+          "label": "Explorateur",
+          "icon": "folder",
+          "page": "Travail",
+          "action": {
+            "type": "open",
+            "target": "shell:MyComputerFolder"
+          }
+        },
+        {
+          "id": "bur-copier",
+          "label": "Copier",
+          "icon": "layers",
+          "page": "Travail",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+c"
+          }
+        },
+        {
+          "id": "bur-coller",
+          "label": "Coller",
+          "icon": "layers",
+          "page": "Travail",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+v"
+          }
+        },
+        {
+          "id": "bur-annuler",
+          "label": "Annuler",
+          "icon": "previous",
+          "page": "Travail",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+z"
+          }
+        },
+        {
+          "id": "bur-capture",
+          "label": "Capture d'une zone",
+          "icon": "camera",
+          "page": "Travail",
+          "action": {
+            "type": "keys",
+            "keys": "win+shift+s"
+          }
+        },
+        {
+          "id": "bur-calc",
+          "label": "Calculatrice",
+          "icon": "settings",
+          "page": "Travail",
+          "action": {
+            "type": "open",
+            "target": "calculator:"
+          }
+        },
+        {
+          "id": "bur-bureau",
+          "label": "Afficher le bureau",
+          "icon": "power",
+          "page": "Travail",
+          "action": {
+            "type": "keys",
+            "keys": "win+d"
+          }
+        },
+        {
+          "id": "bur-verrouiller",
+          "label": "Verrouiller",
+          "icon": "lock",
+          "page": "Travail",
+          "action": {
+            "type": "lock"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pack-montage",
+      "label": "Pack Montage vidéo (page « Montage »)",
+      "description": "Une page « Montage » avec les raccourcis communs à la plupart des logiciels (Premiere, DaVinci Resolve, CapCut…) : lecture, image précédente / suivante, annuler, rétablir, enregistrer.",
+      "buttons": [
+        {
+          "id": "mon-lecture",
+          "label": "Lecture / pause",
+          "icon": "play",
+          "page": "Montage",
+          "action": {
+            "type": "keys",
+            "keys": "space"
+          }
+        },
+        {
+          "id": "mon-prec",
+          "label": "Image précédente",
+          "icon": "previous",
+          "page": "Montage",
+          "action": {
+            "type": "keys",
+            "keys": "left"
+          }
+        },
+        {
+          "id": "mon-suiv",
+          "label": "Image suivante",
+          "icon": "next",
+          "page": "Montage",
+          "action": {
+            "type": "keys",
+            "keys": "right"
+          }
+        },
+        {
+          "id": "mon-annuler",
+          "label": "Annuler",
+          "icon": "previous",
+          "page": "Montage",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+z"
+          }
+        },
+        {
+          "id": "mon-retablir",
+          "label": "Rétablir",
+          "icon": "next",
+          "page": "Montage",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+shift+z"
+          }
+        },
+        {
+          "id": "mon-enregistrer",
+          "label": "Enregistrer",
+          "icon": "folder",
+          "page": "Montage",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+s"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pack-canape",
+      "label": "Pack Canapé (page « Canapé »)",
+      "description": "Une page « Canapé » pour regarder une vidéo du PC depuis le canapé : lecture / pause, volume, reculer / avancer (YouTube, Netflix…), plein écran, son sur la sortie suivante, éteindre l'écran. Astuce : Affichage → Taille des boutons « Grands ».",
+      "buttons": [
+        {
+          "id": "can-lecture",
+          "label": "Lecture / pause",
+          "icon": "play",
+          "page": "Canapé",
+          "action": {
+            "type": "keys",
+            "keys": "mediaplaypause"
+          }
+        },
+        {
+          "id": "can-moins",
+          "label": "Volume −",
+          "icon": "volume-down",
+          "page": "Canapé",
+          "action": {
+            "type": "volume",
+            "op": "down",
+            "step": 5
+          }
+        },
+        {
+          "id": "can-plus",
+          "label": "Volume +",
+          "icon": "volume-up",
+          "page": "Canapé",
+          "action": {
+            "type": "volume",
+            "op": "up",
+            "step": 5
+          }
+        },
+        {
+          "id": "can-recul",
+          "label": "Reculer",
+          "icon": "previous",
+          "page": "Canapé",
+          "action": {
+            "type": "keys",
+            "keys": "left"
+          }
+        },
+        {
+          "id": "can-avance",
+          "label": "Avancer",
+          "icon": "next",
+          "page": "Canapé",
+          "action": {
+            "type": "keys",
+            "keys": "right"
+          }
+        },
+        {
+          "id": "can-plein",
+          "label": "Plein écran",
+          "icon": "layers",
+          "page": "Canapé",
+          "action": {
+            "type": "keys",
+            "keys": "f"
+          }
+        },
+        {
+          "id": "can-sortie",
+          "label": "Son : sortie suivante",
+          "icon": "volume-up",
+          "page": "Canapé",
+          "action": {
+            "type": "audio"
+          }
+        },
+        {
+          "id": "can-ecran",
+          "label": "Éteindre l'écran",
+          "icon": "power",
+          "page": "Canapé",
+          "action": {
+            "type": "screenoff"
+          }
+        }
+      ]
+    },
+    {
       "id": "apple-music",
       "label": "Apple Music",
       "description": "Bouton qui ouvre ou affiche Apple Music sur le 2e écran, et interrupteur « Son sur Apple Music ».",
@@ -141,8 +526,8 @@
     },
     {
       "id": "discord-mute",
-      "label": "Micro Discord",
-      "description": "Interrupteur micro coupé / actif. Dans Discord : Paramètres > Raccourcis, ajouter « Activer/désactiver la sourdine » avec Ctrl + Maj + Alt + M.",
+      "label": "Discord (micro et casque)",
+      "description": "Deux interrupteurs : micro et casque. Dans Discord : Paramètres > Raccourcis, ajouter « Activer/désactiver la sourdine » avec Ctrl + Maj + Alt + M, et « Activer/désactiver le mode sourd » avec Ctrl + Maj + Alt + D.",
       "toggles": [
         {
           "id": "discord-micro",
@@ -151,6 +536,14 @@
           "action": {
             "type": "keys",
             "keys": "ctrl+shift+alt+m"
+          }
+        },
+        {
+          "id": "discord-casque",
+          "label": "Casque Discord",
+          "action": {
+            "type": "keys",
+            "keys": "ctrl+shift+alt+d"
           }
         }
       ]

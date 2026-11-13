@@ -3,6 +3,8 @@
     package="fr.pcdeck.app">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Petite vibration à chaque appui sur un bouton (navigator.vibrate de la page) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Installer les nouvelles versions de PC Deck fournies par le PC (Android demande confirmation) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 

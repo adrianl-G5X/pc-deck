@@ -85,6 +85,61 @@ async function changeSystemVolume(op, step) {
   return parseVolume(await command(`sysvol ${op} ${step}`));
 }
 
+// Micro par défaut de Windows : op "get" | "mute" (bascule). Renvoie { volume, muted }
+async function changeMic(op) {
+  return parseVolume(await command(`micvol ${op}`));
+}
+
+// Pavé tactile de la tablette : op "move" (dx, dy en pixels) | "btn" ("l"/"r", "down"/"up") | "wheel" (delta)
+function mouse(...args) {
+  return command(`mouse ${args.join(' ')}`);
+}
+
+// Presse-papiers du PC (texte seulement)
+async function getClipboard() {
+  return Buffer.from(String(await command('clipget')).replace(/^ok:/, ''), 'base64').toString('utf8');
+}
+function setClipboard(text) {
+  return command(`clipset ${Buffer.from(String(text), 'utf8').toString('base64')}`);
+}
+
+// Lignes "a<TAB>b<TAB>c" renvoyées en base64 par keys.ps1
+const rows = async (line) => Buffer.from(String(await command(line)).replace(/^ok:/, ''), 'base64').toString('utf8').split('\n').filter(Boolean).map((l) => l.split('\t'));
+
+// Fenêtres ouvertes : [{ h, app, title }] ; op sur une fenêtre : "front" | "close" | "other" (autre écran)
+async function listWindows() {
+  return (await rows('wins')).map(([h, app, title]) => ({ h, app, title }));
+}
+async function windowAct(h, op) {
+  if (!/^\d+$/.test(String(h)) || !['front', 'close', 'other'].includes(op)) throw new Error('demande invalide');
+  const r = await command(`win ${h} ${op}`);
+  if (r === 'notfound') throw new Error('cette fenêtre est déjà fermée');
+}
+function screenOff() {
+  return command('screenoff');
+}
+
+// Sorties (flow 0) ou entrées (flow 1) son : [{ id, name, current }] ; choix de celle par défaut
+async function audioDevices(flow) {
+  return (await rows(`devices ${flow}`)).map(([id, name, def]) => ({ id, name, current: def === '1' }));
+}
+function setAudioDevice(id) {
+  if (!/^\{[\d.]+\}\.\{[0-9a-f-]+\}$/i.test(String(id))) return Promise.reject(new Error('appareil son inconnu'));
+  return command(`setdev ${id}`);
+}
+
+// Mélangeur : [{ name: "spotify", volume: 0-100, muted }] des programmes qui ont un son ouvert
+async function listMixer() {
+  const body = String(await command('mixer')).replace(/^ok:/, '');
+  return body ? body.split('|').map((x) => { const [name, volume, muted] = x.split(','); return { name, volume: Number(volume), muted: muted === '1' }; }) : [];
+}
+
+// Volume exact (0-100) d'un programme, ou de Windows si name est vide
+async function setVolume(name, level) {
+  const v = Math.round(Math.min(100, Math.max(0, Number(level) || 0)));
+  return parseVolume(await command(name ? `appvol set ${v} ${name}` : `sysvol set ${v}`));
+}
+
 // Affiche en grand la fenêtre d'un programme ; where : "same" | "secondary" | "primary".
 // title (facultatif) : texte que le titre de la fenêtre doit contenir (ex. "Gmail").
 // Renvoie false si aucune fenêtre ne correspond.
@@ -120,4 +175,4 @@ function stopWorker() {
   worker?.kill();
 }
 
-module.exports = { parseKeys, pressKeys, changeAppVolume, changeSystemVolume, showWindow, focusFolder, foregroundProcess, typeText, showOsd, startWorker, stopWorker };
+module.exports = { listWindows, windowAct, screenOff, audioDevices, setAudioDevice, parseKeys, pressKeys, changeAppVolume, changeSystemVolume, changeMic, mouse, getClipboard, setClipboard, listMixer, setVolume, showWindow, focusFolder, foregroundProcess, typeText, showOsd, startWorker, stopWorker };

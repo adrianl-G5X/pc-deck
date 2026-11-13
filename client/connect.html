@@ -81,6 +81,7 @@
       <div class="qr" id="qrApp"></div>
       <div class="code" data-code>······</div>
       <div class="timer" data-timer></div>
+      <small>Un seul code suffit : une fois connectée, l'appli retient toutes les adresses du PC (y compris Tailscale) et passe toute seule par Tailscale hors de chez toi, si Tailscale est actif sur la tablette.</small>
     </div>
   </section>
 
@@ -168,7 +169,7 @@
     for (const el of document.querySelectorAll('[data-code]')) el.textContent = code || '······';
     const m = Math.floor(info.secondsLeft / 60), s = String(info.secondsLeft % 60).padStart(2, '0');
     for (const el of document.querySelectorAll('[data-timer]')) {
-      el.textContent = code ? `Valable encore ${m}:${s}, pour un seul appareil.` : 'Code utilisé ou expiré : touche « Nouveau code ».';
+      el.textContent = code ? `Pour un seul appareil · nouveau code tout seul dans ${m}:${s}` : 'Nouveau code…';
     }
     if (host) {
       $('pcUrl').textContent = `http://${host}`;
@@ -197,15 +198,22 @@
     }
     if (info.paired.length > shownPaired) {
       shownPaired = info.paired.length;
-      $('done').textContent = `✓ « ${info.paired[info.paired.length - 1]} » est connecté. Pour un autre appareil, touche « Nouveau code ».`;
+      $('done').textContent = `✓ « ${info.paired[info.paired.length - 1]} » est connecté. Pour un autre appareil, utilise le nouveau code ci-dessus.`;
       $('done').classList.add('show');
     }
   }
 
+  // Code expiré ou déjà utilisé : un nouveau est créé tout seul (tant que cette page est ouverte)
+  let renewing = false;
   async function load(method) {
     const r = await fetch('api/pairing', { method, cache: 'no-store' });
     info = await r.json();
-    render();
+    render(); // affiche d'abord « ✓ … est connecté »
+    if (!info.code && !renewing) {
+      renewing = true;
+      shownPaired = 0; // le prochain appareil connecté sera annoncé aussi
+      try { await load('POST'); } finally { renewing = false; }
+    }
   }
 
   $('iosTs').addEventListener('change', () => info && render());

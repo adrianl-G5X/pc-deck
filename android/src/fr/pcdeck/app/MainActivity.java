@@ -2,6 +2,17 @@ package fr.pcdeck.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.graphics.Color;
+import android.media.MediaPlayer;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.MediaController;
+import android.widget.TextView;
+import android.widget.VideoView;
+import android.app.DownloadManager;
+import android.os.Environment;
+import android.speech.RecognizerIntent;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -64,6 +75,26 @@ public class MainActivity extends Activity {
     static final int PORT = 8787;
 
     WebView web;
+    static final int SPEECH = 42;
+
+    // Résultat de la reconnaissance vocale -> l'interface
+    void speech(String text) {
+        final String js = "window.onNativeSpeech && window.onNativeSpeech(" + (text == null ? "null" : JSONObject.quote(text)) + ")";
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                web.evaluateJavascript(js, null);
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != SPEECH) return;
+        ArrayList<String> heard = result == RESULT_OK && data != null ? data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS) : null;
+        speech(heard != null && !heard.isEmpty() ? heard.get(0) : null);
+    }
     SharedPreferences prefs;
     volatile String lastGood;
     volatile String pendingCode; // code d'appairage reçu par un QR code
@@ -220,13 +251,88 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
-        web.onPause();
+        web.onPause(); // arrête aussi les vidéos et la musique de la page
+        if (videoView != null) videoView.pause(); // appli quittée (Accueil, autre appli) : la vidéo s'arrête
         super.onPause();
     }
 
     @Override
     public void onBackPressed() {
-        moveTaskToBack(true); // retour = mettre l'appli en arrière-plan
+        if (videoBox != null) { closeVideo(); return; } // retour = fermer la vidéo
+        // Retour : d'abord dans la page (dossier d'avant, fermer un outil) ; sinon l'appli passe en arrière-plan
+        web.evaluateJavascript("window.pcdeckBack ? String(window.pcdeckBack()) : 'false'", new android.webkit.ValueCallback<String>() {
+            @Override
+            public void onReceiveValue(String handled) {
+                if (!"\"true\"".equals(handled)) moveTaskToBack(true);
+            }
+        });
+    }
+
+    // ---------- Lecteur vidéo dans l'appli (décodeurs de la tablette : 4K, HEVC, MKV…), par-dessus PC Deck ----------
+    FrameLayout videoBox = null;
+    VideoView videoView = null;
+    void playVideo(String url) {
+        closeVideo();
+        final FrameLayout box = new FrameLayout(this);
+        box.setBackgroundColor(Color.BLACK);
+        final VideoView vv = new VideoView(this);
+        vv.setZOrderMediaOverlay(true); // image de la vidéo au-dessus de la page (sinon : le son sans l'image)
+        box.addView(vv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        final MediaController mc = new MediaController(this);
+        mc.setAnchorView(vv);
+        vv.setMediaController(mc);
+        vv.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                vv.start();
+                mc.show(3000);
+            }
+        });
+        vv.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mp, int what, int extra) {
+                Toast.makeText(MainActivity.this, "Cette tablette ne sait pas lire ce format de vidéo", Toast.LENGTH_LONG).show();
+                closeVideo();
+                return true;
+            }
+        });
+        vv.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                mc.show(0);
+            }
+        });
+        TextView close = new TextView(this);
+        close.setText("✕  Fermer");
+        close.setTextColor(Color.WHITE);
+        close.setTextSize(18);
+        close.setPadding(36, 24, 36, 24);
+        close.setBackgroundColor(0x99000000);
+        close.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                closeVideo();
+            }
+        });
+        box.addView(close, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END));
+        box.setOnClickListener(new View.OnClickListener() { // toucher l'image : afficher les commandes
+            @Override
+            public void onClick(View v) {
+                mc.show(3000);
+            }
+        });
+        addContentView(box, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        videoBox = box;
+        videoView = vv;
+        vv.setVideoURI(Uri.parse(url));
+    }
+    void closeVideo() {
+        if (videoBox == null) return;
+        videoView.stopPlayback();
+        ((ViewGroup) videoBox.getParent()).removeView(videoBox);
+        videoBox = null;
+        videoView = null;
+        hideBars();
     }
 
     // Plein écran : barres d'état et de navigation cachées (glisser du bord pour les revoir)
@@ -410,6 +516,50 @@ public class MainActivity extends Activity {
             }
         }
 
+        // Dictée / commande vocale : reconnaissance vocale du téléphone (Google), réponse dans window.onNativeSpeech(texte)
+        @JavascriptInterface
+        public void listen() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                    i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR");
+                    i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Je t'écoute…");
+                    try {
+                        startActivityForResult(i, SPEECH);
+                    } catch (Exception e) {
+                        speech(null);
+                    }
+                }
+            });
+        }
+
+        // Fichier du PC enregistré dans « Téléchargements » du téléphone (l'adresse contient le laissez-passer)
+        @JavascriptInterface
+        public void download(String url, String name) {
+            try {
+                DownloadManager.Request r = new DownloadManager.Request(Uri.parse(url));
+                r.setTitle(name);
+                r.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name.replaceAll("[\\\\/:*?\"<>|]", "_"));
+                ((DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE)).enqueue(r);
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, "Téléchargement impossible : " + e.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        }
+
+        // Vidéo du PC lue dans l'appli, par les décodeurs de la tablette (4K HEVC des drones / téléphones, MKV…)
+        @JavascriptInterface
+        public void playVideo(final String url) {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    MainActivity.this.playVideo(url);
+                }
+            });
+        }
+
         @JavascriptInterface
         public void installUpdate() {
             new Thread(new Runnable() {
@@ -464,6 +614,31 @@ public class MainActivity extends Activity {
                 if (s != null) s.close();
             }
             return out.toString();
+        }
+
+        // Allume le PC à distance (Wake-on-LAN) : « paquet magique » envoyé sur le Wi-Fi.
+        // macs : adresses des cartes réseau du PC, séparées par des virgules (ex. "a1:b2:c3:d4:e5:f6").
+        @JavascriptInterface
+        public boolean wake(String macs) {
+            boolean sent = false;
+            DatagramSocket s = null;
+            try {
+                s = new DatagramSocket();
+                s.setBroadcast(true);
+                for (String mac : macs.split(",")) {
+                    String[] hex = mac.trim().split("[:-]");
+                    if (hex.length != 6) continue;
+                    byte[] p = new byte[102];
+                    for (int i = 0; i < 6; i++) p[i] = (byte) 0xff;
+                    for (int i = 6; i < 102; i++) p[i] = (byte) Integer.parseInt(hex[(i - 6) % 6], 16);
+                    for (int port : new int[] { 9, 7 }) s.send(new DatagramPacket(p, p.length, InetAddress.getByName("255.255.255.255"), port));
+                    sent = true;
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (s != null) s.close();
+            }
+            return sent;
         }
 
         @JavascriptInterface

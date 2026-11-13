@@ -9,6 +9,11 @@ $ErrorActionPreference = 'SilentlyContinue'
 $root = Split-Path $PSScriptRoot -Parent
 $dataDir = if ($env:PCDECK_DATA) { $env:PCDECK_DATA } else { Join-Path $env:LOCALAPPDATA 'PC Deck' }
 New-Item -ItemType Directory -Force $dataDir | Out-Null
+# Journal de démarrage (diagnostic : voir ce qui a tourné). Mode de langage "ConstrainedLanguage" = Windows restreint les scripts non signés.
+$bootLog = Join-Path $dataDir 'demarrage.log'
+function Write-Boot($m) { try { "$(Get-Date) [tray] $m" | Add-Content -Path $bootLog -Encoding UTF8 } catch {} }
+Write-Boot "demarre, langage=$($ExecutionContext.SessionState.LanguageMode), dossier=$root"
+trap { Write-Boot "ERREUR: $($_.Exception.Message)"; continue }
 $serverJs = Join-Path $root 'server\server.js'
 $logOut = Join-Path $dataDir 'server.log'
 $logErr = Join-Path $dataDir 'server-erreurs.log'
@@ -37,6 +42,7 @@ function Start-Server {
   }
   $script:server = Start-Process -FilePath $node -ArgumentList "`"$serverJs`"" -WorkingDirectory $root `
     -WindowStyle Hidden -PassThru -RedirectStandardOutput $logOut -RedirectStandardError $logErr
+  Write-Boot "serveur lance: $node (pid $($script:server.Id))"
 }
 
 # Réseaux en "Public" (hors Tailscale) : Windows y bloque PC Deck
@@ -65,6 +71,7 @@ $tray = New-Object System.Windows.Forms.NotifyIcon
 $tray.Icon = $icon
 $tray.Text = 'PC Deck - en marche'
 $tray.Visible = $true
+Write-Boot 'icone creee'
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 $version = try { (Get-Content (Join-Path $root 'package.json') -Raw | ConvertFrom-Json).version } catch { '?' }
@@ -242,13 +249,13 @@ $lhmTimer.add_Tick({ Ensure-Lhm })
 $lhmTimer.Start()
 Ensure-Lhm
 
-# Aucun appareil encore connecté (juste après l'installation) : on ouvre la page de connexion
+# Aucun appareil encore connecté (juste après l'installation) : assistant de premier lancement
 $devices = @()
 try { $devices = @(Get-Content (Join-Path $dataDir 'devices.json') -Raw | ConvertFrom-Json) } catch {}
 if (-not $devices.Count) {
   $first = New-Object System.Windows.Forms.Timer
   $first.Interval = 5000
-  $first.add_Tick({ $first.Stop(); Open-Connect })
+  $first.add_Tick({ $first.Stop(); Start-Process ("http://localhost:{0}/settings#bienvenue" -f (Get-Port)) }) # assistant : tablette, boutons, theme
   $first.Start()
 }
 

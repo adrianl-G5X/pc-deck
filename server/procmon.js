@@ -3,8 +3,10 @@
 const { spawnHelper } = require('./helper');
 const path = require('path');
 
-let latest = { cpu: [], mem: [], time: 0 };
+let latest = { cpu: [], mem: [], fps: null, time: 0 };
 let child = null;
+let foreground = ''; // programme de la fenêtre au premier plan (sans .exe, en minuscules)
+let onForeground = null;
 
 function start() {
   child = spawnHelper('procmon', process.pid);
@@ -18,7 +20,9 @@ function start() {
       if (!line.startsWith('{')) continue;
       try {
         const msg = JSON.parse(line);
-        latest = { cpu: msg.cpu || [], mem: msg.mem || [], time: Date.now() };
+        latest = { cpu: msg.cpu || [], mem: msg.mem || [], fps: Number.isInteger(msg.fps) ? msg.fps : null, time: Date.now() };
+        const fg = String(msg.fg || '').toLowerCase();
+        if (fg !== foreground) { foreground = fg; onForeground?.(fg); }
       } catch {}
     }
   });
@@ -28,7 +32,9 @@ function start() {
   });
 }
 
-function startProcmon() {
+// fn(nom) est appelée quand la fenêtre au premier plan change de programme
+function startProcmon(fn) {
+  onForeground = fn;
   start();
   process.on('exit', () => child?.kill());
 }
@@ -39,4 +45,7 @@ function getProcesses() {
   return { cpu: latest.cpu, mem: latest.mem };
 }
 
-module.exports = { startProcmon, getProcesses };
+// Images par seconde du jeu au premier plan (RivaTuner / MSI Afterburner), ou null
+const getFps = () => (Date.now() - latest.time > 6000 ? null : latest.fps);
+
+module.exports = { startProcmon, getProcesses, getFps, getForeground: () => (Date.now() - latest.time > 6000 ? '' : foreground) };

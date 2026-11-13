@@ -36,11 +36,13 @@ public static class PcDeckIco {
   public interface IShellItemImageFactory { [PreserveSig] int GetImage(SZ size,int flags,out IntPtr h); }
   [StructLayout(LayoutKind.Sequential)] public struct SZ { public int cx,cy; }
   [StructLayout(LayoutKind.Sequential)] struct BM { public int t,w,h,wb; public short pl,bpp; public IntPtr bits; }
-  public static string Shell(string name,int size){
+  public static string Shell(string name,int size){ return Shell(name,size,0x4); }
+  // flags 0x4 : l'icone ; 0 : la miniature (photo, video), comme dans l'Explorateur
+  public static string Shell(string name,int size,int flags){
     Guid iid=new Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"); IShellItemImageFactory f;
     SHCreateItemFromParsingName(name,IntPtr.Zero,ref iid,out f);
     IntPtr hb; SZ s; s.cx=size; s.cy=size;
-    if(f.GetImage(s,0x4,out hb)!=0||hb==IntPtr.Zero) return null;
+    if(f.GetImage(s,flags,out hb)!=0||hb==IntPtr.Zero) return null;
     try{
       BM bm=new BM(); GetObject(hb,Marshal.SizeOf(bm),ref bm);
       using(Bitmap raw=new Bitmap(bm.w,bm.h,bm.wb,PixelFormat.Format32bppPArgb,bm.bits))
@@ -67,6 +69,8 @@ try {
   switch($env:PCDECK_MODE){
     'file'  { From-File $p }
     'shell' { [PcDeckIco]::Shell($p,128) }
+    'thumb' { [PcDeckIco]::Shell($p,320,0) }
+    'big'   { [PcDeckIco]::Shell($p,1024,0) }
     'proc'  { $x=(Get-Process -Name $p -ErrorAction SilentlyContinue | Where-Object { $_.Path } | Select-Object -First 1).Path; if($x){ From-File $x } }
     default {
       $bytes=[IO.File]::ReadAllBytes($p); $ms=New-Object IO.MemoryStream(,$bytes)
@@ -97,6 +101,67 @@ async function listApps() {
   const out = await run('[Console]::OutputEncoding=[Text.Encoding]::UTF8; ConvertTo-Json -Compress -InputObject @(Get-StartApps | Select-Object Name, AppID)', {}, 20000);
   try { startApps = JSON.parse(out).filter((a) => a.Name && a.AppID); startAt = Date.now(); } catch { startApps = startApps || []; }
   return startApps;
+}
+// Programmes installés avec leur chemin : raccourcis du menu Démarrer (cible .exe), puis applis du Store (appId)
+// -> [{ name, path }] ou [{ name, appId }], pour proposer des suggestions quand on tape un nom de programme
+let programs = null;
+let programsAt = 0;
+async function listPrograms() {
+  if (programs && Date.now() - programsAt < 10 * 60 * 1000) return programs;
+  const script = `[Console]::OutputEncoding=[Text.Encoding]::UTF8
+$sh = New-Object -ComObject WScript.Shell
+$dirs = @([Environment]::GetFolderPath('CommonPrograms'), [Environment]::GetFolderPath('Programs')) | Where-Object { $_ -and (Test-Path $_) }
+$list = foreach ($d in $dirs) { Get-ChildItem -LiteralPath $d -Recurse -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {
+  try { $t = $sh.CreateShortcut($_.FullName).TargetPath; if ($t -match '\\.exe$' -and (Test-Path -LiteralPath $t)) { [pscustomobject]@{ name = $_.BaseName; path = $t } } } catch {} } }
+ConvertTo-Json -Compress -InputObject @($list)`;
+  const out = await run(script, {}, 30000);
+  let list = [];
+  try { list = [].concat(JSON.parse(out)).filter((p) => p && p.name && p.path); } catch {}
+  const bad = /d[ée]sinstall|uninstall|lisez-?moi|readme|documentation|aide\b|help\b/i;
+  const seen = new Set(list.map((p) => norm(p.name)));
+  for (const a of await listApps()) { // applis du Store (pas de .exe à lancer : on garde leur identifiant)
+    if (a.AppID.includes('!') && !seen.has(norm(a.Name))) { list.push({ name: a.Name, appId: a.AppID }); seen.add(norm(a.Name)); }
+  }
+  // Nom du programme (ce que le Gestionnaire des tâches appelle « Nom de l'image », sans .exe) : lu dans le chemin,
+  // ou dans le manifeste du paquet pour une appli du Store
+  const storeIds = list.filter((p) => p.appId).map((p) => p.appId);
+  let storeExe = {};
+  if (storeIds.length) {
+    const ps = `[Console]::OutputEncoding=[Text.Encoding]::UTF8
+$ids = $env:PCDECK_IDS | ConvertFrom-Json; $pk = Get-AppxPackage; $r = @{}
+foreach ($id in $ids) { try { $p = $id -split '!'; $pkg = $pk | Where-Object { $_.PackageFamilyName -eq $p[0] } | Select-Object -First 1
+  if ($pkg) { $apps = @((Get-AppxPackageManifest $pkg).Package.Applications.Application); $a = $apps | Where-Object { $_.Id -eq $p[1] } | Select-Object -First 1; if (-not $a) { $a = $apps[0] }
+    $r[$id] = [IO.Path]::GetFileNameWithoutExtension($a.Executable) } } catch {} }
+ConvertTo-Json -Compress -InputObject $r`;
+    try { storeExe = JSON.parse(await run(ps, { PCDECK_IDS: JSON.stringify(storeIds) }, 60000)) || {}; } catch {}
+  }
+  for (const p of list) p.process = p.appId ? storeExe[p.appId] || '' : path.basename(p.path).replace(/\.exe$/i, '');
+  const byName = new Map();
+  for (const p of list) if (!bad.test(p.name) && !byName.has(norm(p.name))) byName.set(norm(p.name), p);
+  programs = [...byName.values()].map((p) => ({ ...p, name: p.name.replace(/\s+/g, ' ').trim() })).sort((a, b) => a.name.localeCompare(b.name));
+  programsAt = Date.now();
+  return programs;
+}
+// Programmes qui ont une fenêtre ouverte en ce moment (pour « ajouter un bouton en 1 clic ») :
+// [{ name, path } | { name, appId }], reliés aux programmes installés quand c'est possible
+// (chemin stable du menu Démarrer, appli du Store).
+const HIDDEN_PROCS = /^(applicationframehost|textinputhost|shellexperiencehost|searchhost|startmenuexperiencehost|lockapp|nvidia overlay|powershell|pwsh|cmd|conhost|windowsterminal|node|systemsettings)$/i;
+async function listOpenApps() {
+  const out = await run(`[Console]::OutputEncoding=[Text.Encoding]::UTF8
+ConvertTo-Json -Compress -InputObject @(Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object { [pscustomobject]@{ proc = $_.ProcessName; desc = $_.Description; path = $_.Path } })`, {}, 15000);
+  let procs = [];
+  try { procs = [].concat(JSON.parse(out)).filter((p) => p && p.proc && !HIDDEN_PROCS.test(p.proc)); } catch {}
+  const installed = await listPrograms();
+  const result = [], seen = new Set();
+  for (const p of procs) {
+    const key = p.proc.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const hit = installed.find((x) => (x.process || '').toLowerCase() === key);
+    if (hit) result.push(hit.appId ? { name: hit.name, appId: hit.appId } : { name: hit.name, path: hit.path });
+    else if (p.path && !/\\WindowsApps\\|\\SystemApps\\/i.test(p.path)) result.push({ name: p.desc || p.proc, path: p.path });
+  }
+  return result.sort((a, b) => a.name.localeCompare(b.name));
 }
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 // Nom identique d'abord ; sinon un nom qui contient le texte (le plus court, 6 lettres minimum)
@@ -211,4 +276,33 @@ async function getLogo(button) {
   return null;
 }
 
-module.exports = { getLogo, listApps, sourceOf };
+// Logo d'un programme ouvert (fenêtres de la tablette) : gardé en mémoire
+const procLogos = new Map();
+async function procLogo(name) {
+  if (!procLogos.has(name)) procLogos.set(name, toPng('proc', name).then((b) => (b ? 'data:image/png;base64,' + b.toString('base64') : null)).catch(() => null));
+  return procLogos.get(name);
+}
+
+// Miniature d'une photo ou d'une vidéo (celle de l'Explorateur), gardée sur le disque ; 3 à la fois au plus
+let running = 0;
+const waiting = [];
+async function thumbnail(file, big = false) {
+  let st;
+  try { st = fs.statSync(file); } catch { return null; }
+  fs.mkdirSync(DIR, { recursive: true });
+  const cache = path.join(DIR, (big ? 'grand-' : 'mini-') + crypto.createHash('sha1').update(`${file}:${st.mtimeMs}`).digest('hex') + '.png');
+  try { return 'data:image/png;base64,' + fs.readFileSync(cache).toString('base64'); } catch {}
+  if (running >= 3) await new Promise((r) => waiting.push(r));
+  running++;
+  try {
+    const png = await toPng(big ? 'big' : 'thumb', file);
+    if (!png) return null;
+    fs.writeFileSync(cache, png);
+    return 'data:image/png;base64,' + png.toString('base64');
+  } finally {
+    running--;
+    waiting.shift()?.();
+  }
+}
+
+module.exports = { getLogo, listApps, listPrograms, listOpenApps, sourceOf, procLogo, thumbnail };

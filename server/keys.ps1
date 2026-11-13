@@ -82,6 +82,82 @@ namespace PcDeck {
     [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
   }
 
+  // Sorties et entrees son : liste, et choix de celle par defaut (comme le menu du son de Windows)
+  [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IDevEnum {
+    [PreserveSig] int EnumAudioEndpoints(int flow, int mask, out IDevCollection devices);
+    [PreserveSig] int GetDefaultAudioEndpoint(int flow, int role, out IDev device);
+  }
+  [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IDevCollection { [PreserveSig] int GetCount(out int n); [PreserveSig] int Item(int i, out IDev device); }
+  [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IDev {
+    [PreserveSig] int Activate(ref Guid iid, int ctx, IntPtr p, [MarshalAs(UnmanagedType.IUnknown)] out object o);
+    [PreserveSig] int OpenPropertyStore(int access, out IPropStore store);
+    [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
+  }
+  [StructLayout(LayoutKind.Sequential)] struct PropKey { public Guid fmt; public int pid; }
+  [StructLayout(LayoutKind.Sequential)] struct PropVar { public short vt; short r1, r2, r3; public IntPtr p; IntPtr p2; }
+  [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IPropStore { [PreserveSig] int GetCount(out int n); [PreserveSig] int GetAt(int i, out PropKey k); [PreserveSig] int GetValue(ref PropKey k, out PropVar v); }
+  [ComImport, Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IPolicyConfig {
+    int GetMixFormat(); int GetDeviceFormat(); int ResetDeviceFormat(); int SetDeviceFormat(); int GetProcessingPeriod();
+    int SetProcessingPeriod(); int GetShareMode(); int SetShareMode(); int GetPropertyValue(); int SetPropertyValue();
+    [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+  }
+  [ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")] class PolicyConfigCo { }
+
+  public static class AudioDevices {
+    // flow 0 = sorties (haut-parleurs, casque), 1 = entrees (micros) ; "ok:" + base64 de lignes "id<TAB>nom<TAB>1 si par defaut"
+    public static string List(int flow) {
+      IDevEnum en = (IDevEnum)(new MMDeviceEnumeratorCo());
+      IDev def; string defId = "";
+      if (en.GetDefaultAudioEndpoint(flow, 1, out def) == 0) def.GetId(out defId);
+      IDevCollection col;
+      Marshal.ThrowExceptionForHR(en.EnumAudioEndpoints(flow, 1, out col)); // DEVICE_STATE_ACTIVE
+      int n; col.GetCount(out n);
+      System.Text.StringBuilder sb = new System.Text.StringBuilder();
+      PropKey name = new PropKey(); name.fmt = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"); name.pid = 14; // PKEY_Device_FriendlyName
+      for (int i = 0; i < n; i++) {
+        IDev d; col.Item(i, out d);
+        string id; d.GetId(out id);
+        IPropStore ps; string label = id;
+        if (d.OpenPropertyStore(0, out ps) == 0) { PropVar v; if (ps.GetValue(ref name, out v) == 0 && v.vt == 31) label = Marshal.PtrToStringUni(v.p); }
+        sb.Append(id).Append('\t').Append(label.Replace('\t', ' ')).Append('\t').Append(id == defId ? "1" : "0").Append('\n');
+      }
+      return "ok:" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sb.ToString()));
+    }
+    public static string SetDefault(string id) {
+      IPolicyConfig pc = (IPolicyConfig)(new PolicyConfigCo());
+      for (int role = 0; role < 3; role++) Marshal.ThrowExceptionForHR(pc.SetDefaultEndpoint(id, role)); // console, multimedia, communications
+      return "ok";
+    }
+  }
+
+  // Pave tactile de la tablette (souris relative) et presse-papiers partage
+  public static class Extra {
+    [DllImport("user32.dll")] static extern void mouse_event(uint flags, int dx, int dy, int data, UIntPtr extra);
+
+    // "mouse move <dx> <dy>" | "mouse btn <l|r> <down|up>" | "mouse wheel <delta>" | "clipget" | "clipset <base64>"
+    public static string Run(string[] p) {
+      switch (p[0]) {
+        case "mouse":
+          if (p[1] == "move") mouse_event(0x0001, int.Parse(p[2]), int.Parse(p[3]), 0, UIntPtr.Zero);
+          else if (p[1] == "btn") mouse_event(p[2] == "r" ? (p[3] == "down" ? 0x0008u : 0x0010u) : (p[3] == "down" ? 0x0002u : 0x0004u), 0, 0, 0, UIntPtr.Zero);
+          else if (p[1] == "wheel") mouse_event(0x0800, 0, 0, int.Parse(p[2]), UIntPtr.Zero);
+          return "ok";
+        case "clipget":
+          return "ok:" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(System.Windows.Forms.Clipboard.ContainsText() ? System.Windows.Forms.Clipboard.GetText() : ""));
+        case "clipset":
+          string t = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(p.Length > 1 ? p[1] : ""));
+          if (t.Length == 0) System.Windows.Forms.Clipboard.Clear(); else System.Windows.Forms.Clipboard.SetText(t);
+          return "ok";
+      }
+      return "error ordre inconnu";
+    }
+  }
+
   public static class Keyboard {
     [DllImport("user32.dll")]
     public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
@@ -248,6 +324,50 @@ namespace PcDeck {
     public static string Show(string[] names, string where, string title) {
       IntPtr h = Find(names, title);
       if (h == IntPtr.Zero) return "notfound";
+      return ShowHandle(h, where);
+    }
+
+    // Fenetres ouvertes (comme Alt+Tab) : "ok:" + base64 de lignes "fenetre<TAB>programme<TAB>titre"
+    public static string List() {
+      System.Text.StringBuilder all = new System.Text.StringBuilder();
+      EnumWindows(delegate (IntPtr h, IntPtr d) {
+        if (!IsWindowVisible(h) || GetWindow(h, 4) != IntPtr.Zero || GetWindowTextLength(h) == 0) return true;
+        if ((GetWindowLong(h, -20) & 0x80) != 0) return true;
+        int cloaked;
+        if (DwmGetWindowAttribute(h, 14, out cloaked, 4) == 0 && cloaked != 0) return true;
+        uint pid;
+        GetWindowThreadProcessId(h, out pid);
+        string name;
+        try { name = Process.GetProcessById((int)pid).ProcessName; } catch { return true; }
+        System.Text.StringBuilder sb = new System.Text.StringBuilder(512);
+        GetWindowText(h, sb, 512);
+        all.Append(h.ToInt64()).Append('\t').Append(name).Append('\t').Append(sb.ToString().Replace('\t', ' ').Replace('\n', ' ')).Append('\n');
+        return true;
+      }, IntPtr.Zero);
+      return "ok:" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(all.ToString()));
+    }
+
+    [DllImport("user32.dll")] static extern bool PostMessage(IntPtr hwnd, uint msg, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] static extern bool IsWindow(IntPtr hwnd);
+    // Une fenetre choisie sur la tablette : "front" (devant), "close" (fermer, comme la croix), "other" (sur l'autre ecran)
+    public static string Act(long handle, string op) {
+      IntPtr h = new IntPtr(handle);
+      if (!IsWindow(h)) return "notfound";
+      if (op == "close") { PostMessage(h, 0x10, IntPtr.Zero, IntPtr.Zero); return "ok"; } // WM_CLOSE
+      if (op == "other") {
+        MONITORINFO sec, pri;
+        IntPtr s = Secondary(out sec, out pri);
+        if (s == IntPtr.Zero) return "error un seul ecran";
+        return ShowHandle(h, MonitorFromWindow(h, 2) == s ? "primary" : "secondary");
+      }
+      FocusHandle(h);
+      return "ok";
+    }
+
+    // Eteindre l'ecran (il se rallume a la souris ou au clavier)
+    public static void ScreenOff() { PostMessage(new IntPtr(0xFFFF), 0x0112, new IntPtr(0xF170), new IntPtr(2)); }
+
+    static string ShowHandle(IntPtr h, string where) {
       if (where == "front") { FocusHandle(h); return "ok"; }
 
       if (where == "secondary" || where == "primary") {
@@ -426,18 +546,23 @@ namespace PcDeck {
       return (float)(Math.Max(0, Math.Min(100, next)) / 100.0);
     }
 
-    static object Activate(Guid iid) {
+    // flow : 0 = haut-parleurs, 1 = micro
+    static object Activate(Guid iid, int flow = 0) {
       IMMDeviceEnumerator enumerator = (IMMDeviceEnumerator)(new MMDeviceEnumeratorCo());
       IMMDevice device;
-      Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(0, 1, out device));
+      Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(flow, 1, out device));
       object obj;
       Marshal.ThrowExceptionForHR(device.Activate(ref iid, 23, IntPtr.Zero, out obj));
       return obj;
     }
 
     // Volume general de Windows
-    public static string ChangeSystem(string op, int step) {
-      IAudioEndpointVolume volume = (IAudioEndpointVolume)Activate(typeof(IAudioEndpointVolume).GUID);
+    // Micro par defaut de Windows (meme reponse : "ok:<niveau>:<coupe 0/1>")
+    public static string ChangeMic(string op) {
+      return ChangeSystem(op, 0, 1);
+    }
+    public static string ChangeSystem(string op, int step, int flow = 0) {
+      IAudioEndpointVolume volume = (IAudioEndpointVolume)Activate(typeof(IAudioEndpointVolume).GUID, flow);
       Guid ctx = Guid.Empty;
       float current; bool muted;
       Marshal.ThrowExceptionForHR(volume.GetMasterVolumeLevelScalar(out current));
@@ -447,6 +572,9 @@ namespace PcDeck {
       } else if (op == "mute") {
         muted = !muted;
         volume.SetMute(muted, ref ctx);
+      } else if (op == "set") { // melangeur de la tablette : valeur exacte (step = 0-100)
+        current = Math.Max(0, Math.Min(100, step)) / 100f;
+        volume.SetMasterVolumeLevelScalar(current, ref ctx);
       } else {
         current = Snap(current, op, step);
         volume.SetMasterVolumeLevelScalar(current, ref ctx);
@@ -492,6 +620,9 @@ namespace PcDeck {
           current = newLevel.Value;
           volume.SetMasterVolume(current, ref ctx);
           if (op == "up" && isMuted) { volume.SetMute(false, ref ctx); isMuted = false; }
+        } else if (op == "set") { // melangeur de la tablette : valeur exacte (step = 0-100)
+          current = Math.Max(0, Math.Min(100, step)) / 100f;
+          volume.SetMasterVolume(current, ref ctx);
         } else if (op == "mute") {
           if (!newMute.HasValue) newMute = !isMuted;
           volume.SetMute(newMute.Value, ref ctx);
@@ -501,6 +632,35 @@ namespace PcDeck {
       }
       if (!found) return "notfound";
       return "ok:" + Math.Round(level * 100) + ":" + (muted ? 1 : 0);
+    }
+
+    // Programmes qui ont un son ouvert (melangeur) : "ok:nom,volume,muet|nom,volume,muet..."
+    public static string Mixer() {
+      object obj = Activate(typeof(IAudioSessionManager2).GUID);
+      IAudioSessionEnumerator sessions;
+      Marshal.ThrowExceptionForHR(((IAudioSessionManager2)obj).GetSessionEnumerator(out sessions));
+      int count;
+      sessions.GetCount(out count);
+      System.Collections.Generic.List<string> seen = new System.Collections.Generic.List<string>();
+      System.Text.StringBuilder sb = new System.Text.StringBuilder("ok:");
+      for (int i = 0; i < count; i++) {
+        IAudioSessionControl2 session;
+        if (sessions.GetSession(i, out session) != 0) continue;
+        uint pid;
+        if (session.GetProcessId(out pid) < 0 || pid == 0) continue; // 0 = sons de Windows
+        string name;
+        try { name = Process.GetProcessById((int)pid).ProcessName.ToLowerInvariant(); } catch { continue; }
+        if (seen.Contains(name)) continue;
+        ISimpleAudioVolume volume = session as ISimpleAudioVolume;
+        if (volume == null) continue;
+        float current; bool isMuted;
+        volume.GetMasterVolume(out current);
+        volume.GetMute(out isMuted);
+        if (seen.Count > 0) sb.Append('|');
+        sb.Append(name).Append(',').Append(Math.Round(current * 100)).Append(',').Append(isMuted ? 1 : 0);
+        seen.Add(name);
+      }
+      return sb.ToString();
     }
   }
 }
@@ -562,6 +722,14 @@ while ($true) {
             'sysvol' {
                 $reply = [PcDeck.AppVolume]::ChangeSystem($parts[1], [int]$parts[2])
             }
+            { $_ -in 'mouse', 'clipget', 'clipset' } { $reply = [PcDeck.Extra]::Run($parts) }
+            'wins' { $reply = [PcDeck.Windows]::List() }
+            'win' { $reply = [PcDeck.Windows]::Act([long]$parts[1], $parts[2]) }
+            'screenoff' { [PcDeck.Windows]::ScreenOff(); $reply = 'ok' }
+            'devices' { $reply = [PcDeck.AudioDevices]::List([int]$parts[1]) }
+            'setdev' { $reply = [PcDeck.AudioDevices]::SetDefault($parts[1]) }
+            'micvol' { $reply = [PcDeck.AppVolume]::ChangeMic($parts[1]) }
+            'mixer' { $reply = [PcDeck.AppVolume]::Mixer() }
             default { $reply = 'error ordre inconnu' }
         }
     } catch {

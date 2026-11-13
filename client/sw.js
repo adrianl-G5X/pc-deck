@@ -3,7 +3,7 @@
 // - PC injoignable : on affiche la copie, et l'appli attend la reconnexion.
 // Les données en direct (WebSocket /ws, /api) ne passent jamais par ici.
 
-const CACHE = 'pcdeck-v42';
+const CACHE = 'pcdeck-v84';
 const SHELL = [
   '/',
   '/index.html',
@@ -13,11 +13,14 @@ const SHELL = [
   '/colors.js',
   '/chart.js',
   '/icons.js',
+  '/tools.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
   '/icons/apple-touch-icon.png',
+  '/icons/apple-touch-icon-maison.png',
+  '/icons/apple-touch-icon-dehors.png',
 ];
 
 self.addEventListener('install', (event) => {

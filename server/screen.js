@@ -192,4 +192,21 @@ function input(ws, msg, allowControl) {
   }
 }
 
-module.exports = { startViewing, stopViewing, input };
+// Capture d'écran en grand (pour l'enregistrer sur la tablette) : JPEG en base64, ou null
+async function snapshot(mon = 0) {
+  if (!monitors.length) await getMonitors();
+  for (let i = 0; i < 20; i++) {
+    const w = idleCapturer();
+    if (w) {
+      w.busy = true;
+      const line = await w.ask(`cap ${Math.max(0, Math.min(mon, monitors.length - 1))} 3840 88 force`);
+      w.busy = false;
+      if (!viewers.size) { clearTimeout(stopTimer); stopTimer = setTimeout(() => { if (!viewers.size) killAll(); }, IDLE_STOP_MS); }
+      return line?.startsWith('F ') ? line.slice(2) : null;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
+module.exports = { startViewing, stopViewing, input, snapshot, isViewing: (ws) => viewers.has(ws) };

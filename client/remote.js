@@ -14,6 +14,7 @@ const Remote = (() => {
   let open = false;
   let control = false;
   let monitor = 0;
+  try { monitor = Number(localStorage.getItem('pcdeck-monitor')) || 0; } catch {} // dernier écran choisi
   let lastUrl = null;
   let rightNext = false;
   let frames = 0;
@@ -62,19 +63,47 @@ const Remote = (() => {
   }
   showRes();
 
+  // Téléphone / tablette (pas de souris) : pas de choix, 1080p ; 720p automatique si les données
+  // mobiles sont utilisées ou si l'image consomme trop (plus de 1 Mo/s en moyenne sur 5 s).
+  const mobile = !matchMedia('(any-pointer: fine)').matches;
+  const DATA_LIMIT = 1_000_000; // octets par seconde
+  let bytes = 0, bytesSince = Date.now(), saving = false;
+  if (mobile) {
+    el('remoteRes').style.display = 'none';
+    const c = navigator.connection;
+    saving = !!(c && (c.saveData || c.type === 'cellular'));
+    res = saving ? '720' : '1080';
+  }
+  // Données reçues (image + son) : affichées dans la barre, par seconde et depuis l'ouverture
+  let secBytes = 0, totalBytes = 0;
+  const fmtBytes = (b) => (b >= 1e9 ? (b / 1e9).toFixed(1) + ' Go' : b >= 1e6 ? (b / 1e6).toFixed(b >= 1e8 ? 0 : 1) + ' Mo' : Math.round(b / 1e3) + ' Ko').replace('.', ',');
+  function countData(n) {
+    secBytes += n; totalBytes += n;
+    if (!mobile || saving) return;
+    bytes += n;
+    const s = (Date.now() - bytesSince) / 1000;
+    if (s < 5) return;
+    if (bytes / s > DATA_LIMIT) { saving = true; res = '720'; start(); }
+    bytes = 0; bytesSince = Date.now();
+  }
+
   function start() {
     send({ type: 'screen-start', monitor, maxWidth: widthFor(res), quality: 60, fps });
+    if (soundOn) setSound(true); // son gardé d'une fois sur l'autre (le navigateur peut demander un appui)
+    showSound();
   }
 
   function show() {
     open = true;
     box.hidden = false;
+    secBytes = totalBytes = 0;
     start();
     clearInterval(fpsTimer);
     fpsTimer = setInterval(() => {
       // Écran immobile : le PC n'envoie rien (une image par seconde pour rester à jour)
       const size = img.naturalWidth ? ` · ${img.naturalWidth}×${img.naturalHeight}` : '';
-      el('remoteInfo').textContent = !img.src ? 'en attente…' : (frames > 1 ? `${frames} img/s` : 'écran immobile') + size;
+      el('remoteInfo').textContent = !img.src ? 'en attente…' : (frames > 1 ? `${frames} img/s` : 'écran immobile') + size + ` · ${fmtBytes(secBytes)}/s · ${fmtBytes(totalBytes)}` + (saving ? ' · économie de données' : '');
+      secBytes = 0;
       frames = 0;
     }, 1000);
   }
@@ -110,7 +139,12 @@ const Remote = (() => {
         b.type = 'button';
         b.className = 'remote-key' + (i === monitor ? ' on' : '');
         b.textContent = `Écran ${i + 1}`;
-        b.addEventListener('click', () => { monitor = i; setView(1, 0, 0); start(); });
+        b.addEventListener('click', () => {
+          monitor = i;
+          try { localStorage.setItem('pcdeck-monitor', i); } catch {}
+          setView(1, 0, 0);
+          start();
+        });
         mons.append(b);
       });
     }
@@ -119,6 +153,7 @@ const Remote = (() => {
   function frame(data) {
     if (!open) return;
     frames++;
+    countData(data.size ?? data.byteLength ?? 0);
     const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type: 'image/jpeg' }));
     const old = lastUrl;
     lastUrl = url;
@@ -392,8 +427,18 @@ const Remote = (() => {
   el('remoteBtn').addEventListener('click', show);
   el('remoteClose').addEventListener('click', close);
   el('remoteKbd').addEventListener('click', () => {
-    if (document.activeElement === kbd) kbd.blur();
+    const keys = el('remoteKeys');
+    keys.hidden = !keys.hidden; // rangée de touches spéciales avec le clavier
+    if (keys.hidden) kbd.blur();
     else kbd.focus();
+  });
+  // Touches spéciales : "17+67" = Ctrl+C (appuyées dans l'ordre, relâchées à l'envers)
+  el('remoteKeys').addEventListener('pointerdown', (e) => e.preventDefault()); // garde le clavier tactile ouvert
+  el('remoteKeys').addEventListener('click', (e) => {
+    const vks = e.target.closest('[data-vk]')?.dataset.vk.split('+').map(Number);
+    if (!vks) return;
+    for (const vk of vks) input({ action: 'key', vk, state: 'down' });
+    for (const vk of vks.reverse()) input({ action: 'key', vk, state: 'up' });
   });
   el('remoteRight').addEventListener('click', () => setRightNext(!rightNext));
 
@@ -426,5 +471,45 @@ const Remote = (() => {
     else navigator.keyboard?.unlock?.();
   });
 
-  return { setAvailable, started, frame };
+  // ---------- Son du PC ----------
+  // Morceaux PCM 16 bits stéréo joués à la suite, avec ~150 ms d'avance (absorbe les à-coups du Wi-Fi).
+  let actx = null, playAt = 0, soundOn = false;
+  try { soundOn = localStorage.getItem('pcdeck-sound') === '1'; } catch {}
+  function showSound() {
+    el('remoteSound').classList.toggle('on', soundOn);
+    el('remoteSound').setAttribute('aria-pressed', String(soundOn));
+    el('remoteSound').textContent = soundOn ? 'Son ✓' : 'Son';
+  }
+  function setSound(on) {
+    soundOn = on;
+    try { localStorage.setItem('pcdeck-sound', on ? '1' : '0'); } catch {}
+    if (on) {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      actx.resume(); // doit partir d'un appui (règle des navigateurs)
+    }
+    playAt = 0;
+    send({ type: 'screen-audio', on });
+    showSound();
+  }
+  el('remoteSound').addEventListener('click', () => setSound(!soundOn));
+  function audio(data) {
+    if (!open || !soundOn || !actx) return;
+    secBytes += data.byteLength; totalBytes += data.byteLength; // compté sans déclencher l'économie de données
+    const rate = new DataView(data).getUint32(1, true);
+    const pcm = new Int16Array(data.slice(5));
+    const frames = pcm.length / 2;
+    if (!frames) return;
+    const buf = actx.createBuffer(2, frames, rate);
+    const l = buf.getChannelData(0), r = buf.getChannelData(1);
+    for (let i = 0; i < frames; i++) { l[i] = pcm[2 * i] / 32768; r[i] = pcm[2 * i + 1] / 32768; }
+    const now = actx.currentTime;
+    if (playAt < now + 0.05 || playAt > now + 0.6) playAt = now + 0.15; // trou ou trop de retard : on se recale
+    const src = actx.createBufferSource();
+    src.buffer = buf;
+    src.connect(actx.destination);
+    src.start(playAt);
+    playAt += buf.duration;
+  }
+
+  return { setAvailable, started, frame, audio };
 })();

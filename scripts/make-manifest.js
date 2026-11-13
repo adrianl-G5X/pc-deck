@@ -28,7 +28,7 @@ const manifest = {
   version,
   date: new Date().toISOString().slice(0, 10),
   setup: { name: setupName, sha256: sha256(setupFile) },
-  apk: { name: 'PC-Deck.apk', sha256: sha256(apkFile), versionCode: maj * 10000 + min * 100 + pat },
+  apk: { name: 'PC-Deck.apk', sha256: sha256(apkFile), versionCode: (maj * 10000 + min * 100 + pat) * 100 },
   notes,
 };
 const data = Buffer.from(JSON.stringify(manifest, null, 2));

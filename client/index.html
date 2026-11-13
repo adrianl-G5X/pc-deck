@@ -12,6 +12,19 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>
+  // iPhone : une icône par adresse (Safari garde la connexion par adresse).
+  // Adresse Tailscale (100.64-127.x) = « Dehors », adresse du Wi-Fi de la maison = « Maison ».
+  (() => {
+    const h = location.hostname;
+    const away = /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
+    if (!away && !/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h)) return;
+    const name = away ? 'PC Deck Dehors' : 'PC Deck Maison';
+    document.querySelector('link[rel="apple-touch-icon"]').href = `icons/apple-touch-icon-${away ? 'dehors' : 'maison'}.png`;
+    document.querySelector('meta[name="apple-mobile-web-app-title"]').content = name;
+    document.title = name;
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -23,10 +36,27 @@
       <h1>PC Deck</h1>
       <div class="head-right">
         <span class="status" id="status">Connexion…</span>
-        <button class="icon-btn" id="remoteBtn" type="button" title="Écran du PC" aria-label="Voir et piloter l'écran du PC" hidden>
+        <button class="btn small" id="wakeBtn" type="button" hidden>Allumer le PC</button>
+        <button class="icon-btn" id="mixerBtn" data-label="Volume" type="button" title="Mélangeur de volume" aria-label="Mélangeur de volume">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21v-7M5 10V3M12 21v-9M12 8V3M19 21v-5M19 12V3M2 14h6M9 8h6M16 16h6"/></svg>
+        </button>
+        <button class="icon-btn" id="sendBtn" data-label="Envoyer" type="button" title="Envoyer une photo ou un fichier au PC" aria-label="Envoyer une photo ou un fichier au PC" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>
+        </button>
+        <input type="file" id="sendFile" multiple hidden>
+        <button class="icon-btn" id="toolsBtn" data-label="Outils" type="button" title="Outils : fenêtres, programmes, fichiers, capture, voix…" aria-label="Outils">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+        </button>
+        <button class="icon-btn pad-hidden" id="padBtn" data-label="Souris" type="button" title="Pavé tactile, texte et presse-papiers" aria-label="Pavé tactile, texte et presse-papiers" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 15h16M12 15v6"/></svg>
+        </button>
+        <button class="icon-btn" id="remoteBtn" data-label="Écran PC" type="button" title="Écran du PC" aria-label="Voir et piloter l'écran du PC" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
         </button>
-        <button class="icon-btn" id="fullscreenBtn" type="button" title="Plein écran" aria-label="Plein écran">
+        <button class="icon-btn" id="onlyBtn" data-label="Boutons" type="button" title="Boutons seuls (masquer les infos)" aria-label="Boutons seuls : masquer les infos" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        </button>
+        <button class="icon-btn" id="fullscreenBtn" data-label="Plein écran" type="button" title="Plein écran" aria-label="Plein écran">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
         </button>
       </div>
@@ -47,11 +77,39 @@
     </div>
     <div class="toggles" id="toggles"></div>
     </div>
+    <div class="page-bar" id="pageBar" hidden role="tablist" aria-label="Pages de boutons"></div>
+    <div class="offline-card" id="offlineCard" hidden role="alert">
+      <h2>Le PC ne répond pas</h2>
+      <ul>
+        <li>Le PC est-il <b>allumé</b> ?</li>
+        <li>PC Deck est-il <b>ouvert</b> sur le PC ? (petite icône près de l'horloge)</li>
+        <li>Cet appareil est-il sur le <b>même Wi-Fi</b> que le PC ?</li>
+      </ul>
+      <div class="offline-actions"><button type="button" id="offlineRetry">Réessayer</button><button type="button" id="offlineWake" hidden>Allumer le PC</button></div>
+    </div>
     <div class="buttons" id="buttons"></div>
   </section>
 
   <!-- Droite : infos en temps réel -->
   <section class="panel">
+    <div class="card media-card" id="mediaCard" hidden role="button" tabindex="0" aria-label="Ouvrir le lecteur">
+      <img class="media-art" id="mediaArt" alt="">
+      <div class="media-text">
+        <div class="media-title" id="mediaTitle"></div>
+        <div class="media-artist" id="mediaArtist"></div>
+        <div class="media-bar"><span id="mediaFill"></span></div>
+        <div class="media-time"><span id="mediaPos">0:00</span><span id="mediaApp"></span><span id="mediaDur">0:00</span></div>
+      </div>
+    </div>
+    <div class="card weather-card" id="weatherCard" hidden role="button" tabindex="0" aria-label="Détails de la météo">
+      <span class="w-temp" id="wTemp"></span>
+      <span class="w-text"><b id="wCity"></b><span id="wText"></span></span>
+      <span class="w-range" id="wRange"></span>
+    </div>
+    <div class="card agenda-card" id="agendaCard" hidden>
+      <h2>Prochains rendez-vous</h2>
+      <ul id="agendaList"></ul>
+    </div>
     <div class="tiles">
       <button class="card tile-link" type="button" data-detail="cpu" aria-label="Détails du processeur">
         <h2>Processeur <span class="more" aria-hidden="true">›</span></h2>
@@ -61,7 +119,7 @@
       <button class="card tile-link" type="button" data-detail="gpu" aria-label="Détails de la carte graphique">
         <h2>Carte graphique <span class="more" aria-hidden="true">›</span></h2>
         <div class="big"><span id="gpuUsage">—</span><span class="unit"> %</span></div>
-        <div class="rows"><b id="gpuTemp">—</b> · <b id="gpuPower">—</b></div>
+        <div class="rows"><b id="gpuTemp">—</b> · <b id="gpuPower">—</b><span id="fpsWrap" hidden> · <b id="fps"></b> FPS</span></div>
       </button>
       <button class="card tile-link" type="button" data-detail="ram" aria-label="Détails de la mémoire vive">
         <h2>Mémoire vive <span class="more" aria-hidden="true">›</span></h2>
@@ -117,6 +175,27 @@
 </main>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- Erreur d'un bouton : reste affichée jusqu'à « OK » (avec « Réessayer ») -->
+<div class="err-card" id="errCard" hidden role="alert">
+  <p id="errText"></p>
+  <div><button type="button" id="errRetry">Réessayer</button><button type="button" id="errOk">OK</button></div>
+</div>
+<!-- Astuces au premier lancement (gestes cachés) -->
+<div class="pair confirm" id="tipsBox" hidden role="dialog" aria-modal="true" aria-labelledby="tipsTitle">
+  <div class="pair-box tips-box">
+    <h1 id="tipsTitle">Astuce</h1>
+    <p id="tipsText"></p>
+    <span class="tips-step" id="tipsStep"></span>
+    <button type="button" id="tipsNext">Suivant</button>
+  </div>
+</div>
+<!-- Veille : horloge, météo et morceau en cours en grand (après quelques minutes sans toucher) -->
+<div class="standby" id="standby" hidden>
+  <div class="sb-time" id="sbTime"></div>
+  <div class="sb-date" id="sbDate"></div>
+  <div class="sb-weather" id="sbWeather"></div>
+  <div class="sb-media" id="sbMedia"></div>
+</div>
 
 <!-- Nouvelle version de l'appli tablette (fournie par le PC) -->
 <div class="app-update" id="appUpdate" role="status" hidden>
@@ -154,15 +233,100 @@
 <!-- Écran d'appairage (affiché tant que l'appareil n'est pas reconnu) -->
 <div class="pair" id="pair" hidden>
   <form class="pair-box" id="pairForm">
-    <h1>Appairer cet appareil</h1>
-    <p>Sur le PC : clic droit sur l'icône PC Deck près de l'horloge, puis <b>« Connecter un appareil »</b>. Tape le code à 6 chiffres affiché.</p>
+    <h1>Connecter cet appareil</h1>
+    <p>Sur le PC : clic droit sur l'icône PC Deck près de l'horloge → <b>« Connecter un appareil »</b>. Tape le code de connexion (6 chiffres).</p>
     <input id="pairCode" inputmode="numeric" pattern="\d{6}" maxlength="6" autocomplete="off" placeholder="••••••" required>
-    <button type="submit">Valider</button>
+    <button type="submit">Se connecter</button>
     <div class="pair-error" id="pairError"></div>
   </form>
 </div>
 
 <!-- « Tu es sûr ? » avant une action sensible (ex. verrouiller le PC) -->
+<!-- Lecteur plein écran (touche la carte « morceau en cours ») : pochette, commandes, volume de l'appli, paroles à droite -->
+<div class="player" id="player" hidden role="dialog" aria-modal="true" aria-label="Lecteur">
+  <button class="player-close" id="playerClose" type="button" aria-label="Fermer le lecteur">✕</button>
+  <div class="player-main">
+    <img class="player-art" id="playerArt" alt="">
+    <div class="player-title" id="playerTitle"></div>
+    <div class="player-artist" id="playerArtist"></div>
+    <div class="media-bar"><span id="playerFill"></span></div>
+    <div class="media-time"><span id="playerPos">0:00</span><span id="playerApp"></span><span id="playerDur">0:00</span></div>
+    <div class="player-ctl">
+      <button type="button" id="plBack" class="skip" aria-label="Reculer de 10 secondes">−10</button>
+      <button type="button" id="plPrev" aria-label="Précédent"></button>
+      <button type="button" id="plToggle" class="big" aria-label="Lecture / pause"></button>
+      <button type="button" id="plNext" aria-label="Suivant"></button>
+      <button type="button" id="plFwd" class="skip" aria-label="Avancer de 10 secondes">+10</button>
+    </div>
+    <label class="player-vol"><span class="vol-ico" id="plVolIcon" aria-hidden="true"></span><input type="range" id="plVol" min="0" max="100" step="1" aria-label="Volume de l'appli de musique"><span id="plVolPct">–</span><small id="plVolLabel">Volume</small></label>
+  </div>
+  <div class="player-lyrics" id="playerLyrics" hidden aria-live="off"></div>
+</div>
+<div class="pair confirm" id="editBox" hidden role="dialog" aria-modal="true" aria-labelledby="editTitle">
+  <div class="pair-box edit-box">
+    <h1 id="editTitle">Bouton</h1>
+    <input type="text" id="editName" maxlength="40" aria-label="Nom du bouton">
+    <button type="button" id="editRename">Renommer</button>
+    <div class="edit-row"><button type="button" id="editLeft">‹ Déplacer</button><button type="button" id="editRight">Déplacer ›</button></div>
+    <select id="editPage" aria-label="Page du bouton"></select>
+    <button type="button" id="editDraft">Mettre de côté</button>
+    <p class="edit-hint">Pour changer ce que fait le bouton : Paramètres sur le PC.</p>
+    <button type="button" id="editClose">Fermer</button>
+  </div>
+</div>
+<div class="pair confirm" id="mixerBox" hidden role="dialog" aria-modal="true" aria-labelledby="mixerTitle">
+  <div class="pair-box mixer-box">
+    <h1 id="mixerTitle">Mélangeur de volume</h1>
+    <p class="mixer-hint">Un curseur par appli qui joue du son.</p>
+    <div class="mixer-devices" id="mixerDevices"></div>
+    <div class="mixer-list" id="mixerList"><p>Chargement…</p></div>
+  </div>
+</div>
+<div class="pair confirm" id="toolsBox" hidden role="dialog" aria-modal="true" aria-labelledby="toolsTitle">
+  <div class="pair-box tools-box">
+    <div class="tools-head"><h1 id="toolsTitle">Outils</h1><button type="button" id="toolsReset" hidden>Rétablir</button><button type="button" id="toolsEdit">Modifier</button></div>
+    <div class="tools-grid">
+      <button type="button" data-tool="windows"><b data-ico="layers"></b><span class="tl">Fenêtres ouvertes</span></button>
+      <button type="button" data-tool="programs"><b data-ico="zap"></b><span class="tl">Lancer un programme</span></button>
+      <button type="button" data-tool="files"><b data-ico="folder"></b><span class="tl">Fichiers du PC</span></button>
+      <button type="button" data-tool="snapshot"><b data-ico="camera"></b><span class="tl">Capture d'écran</span></button>
+      <button type="button" data-tool="clips"><b data-ico="terminal"></b><span class="tl">Presse-papiers</span></button>
+      <button type="button" data-tool="pad"><b data-ico="activity"></b><span class="tl">Souris et texte</span></button>
+      <button type="button" data-tool="dictate"><b data-ico="mic"></b><span class="tl">Dictée</span></button>
+      <button type="button" data-tool="voice"><b data-ico="mic"></b><span class="tl">Commande vocale</span></button>
+      <button type="button" data-tool="device"><b data-ico="settings"></b><span class="tl">Cet appareil</span></button>
+    </div>
+  </div>
+</div>
+<div class="pair confirm" id="toolBox" hidden role="dialog" aria-modal="true" aria-labelledby="toolTitle">
+  <div class="pair-box tool-box">
+    <div class="tool-head"><button type="button" id="toolBack" aria-label="Retour">‹ Retour</button><h1 id="toolTitle"></h1></div>
+    <div class="tool-body" id="toolBody"></div>
+  </div>
+</div>
+<div class="pair confirm" id="wxBox" hidden role="dialog" aria-modal="true" aria-labelledby="wxTitle">
+  <div class="pair-box wx-box">
+    <div class="wx-now">
+      <span class="wx-temp" id="wxTemp"></span>
+      <div><h1 id="wxTitle"></h1><p id="wxText"></p></div>
+    </div>
+    <div class="wx-facts" id="wxFacts"></div>
+    <h2>Prochaines heures</h2>
+    <div class="wx-hours" id="wxHours"></div>
+    <h2>7 jours</h2>
+    <div class="wx-days" id="wxDays"></div>
+  </div>
+</div>
+<div class="pair confirm" id="padBox" hidden role="dialog" aria-modal="true" aria-labelledby="padTitle">
+  <div class="pair-box pad-box">
+    <h1 id="padTitle">Pavé tactile</h1>
+    <div class="pad-area" id="padArea">Glisse un doigt : la souris bouge · touche : clic · 2 doigts : clic droit (toucher) ou défiler (glisser)</div>
+    <div class="pad-row"><button type="button" id="padL">Clic gauche</button><button type="button" id="padR">Clic droit</button></div>
+    <textarea id="padText" rows="3" placeholder="Texte à taper sur le PC, ou à échanger avec son presse-papiers" aria-label="Texte"></textarea>
+    <div class="pad-row"><button type="button" id="padType">Taper sur le PC</button><button type="button" data-key="enter">Entrée</button><button type="button" data-key="backspace" aria-label="Effacer">⌫</button></div>
+    <div class="pad-row"><button type="button" id="clipGet">Prendre le presse-papiers du PC</button><button type="button" id="clipSet">Envoyer au presse-papiers du PC</button></div>
+  </div>
+</div>
 <div class="pair confirm" id="confirmBox" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
   <div class="pair-box">
     <h1 id="confirmTitle">Tu es sûr ?</h1>
@@ -189,8 +353,24 @@
       <button class="remote-key" type="button" data-fps="60">Élevé 60</button>
     </div>
     <button class="remote-key" id="remoteFull" type="button" hidden>Plein écran</button>
+    <button class="remote-key" id="remoteSound" type="button" aria-pressed="false" title="Écouter le son du PC sur cet appareil">Son</button>
     <button class="remote-key" id="remoteKbd" type="button">Clavier</button>
     <button class="remote-key" id="remoteRight" type="button" title="Le prochain appui sera un clic droit">Clic droit</button>
+  </div>
+  <div class="remote-bar remote-keys" id="remoteKeys" hidden aria-label="Touches spéciales">
+    <button class="remote-key" type="button" data-vk="27">Échap</button>
+    <button class="remote-key" type="button" data-vk="9">Tab</button>
+    <button class="remote-key" type="button" data-vk="91">Win</button>
+    <button class="remote-key" type="button" data-vk="18+9">Alt+Tab</button>
+    <button class="remote-key" type="button" data-vk="17+67">Copier</button>
+    <button class="remote-key" type="button" data-vk="17+86">Coller</button>
+    <button class="remote-key" type="button" data-vk="17+90">Annuler</button>
+    <button class="remote-key" type="button" data-vk="17+65">Tout</button>
+    <button class="remote-key" type="button" data-vk="46">Suppr</button>
+    <button class="remote-key" type="button" data-vk="37">←</button>
+    <button class="remote-key" type="button" data-vk="38">↑</button>
+    <button class="remote-key" type="button" data-vk="40">↓</button>
+    <button class="remote-key" type="button" data-vk="39">→</button>
   </div>
   <button class="remote-handle" id="remoteHandle" type="button" aria-label="Afficher la barre">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -207,5 +387,6 @@
 <script src="remote.js"></script>
 <script src="icons.js"></script>
 <script src="app.js"></script>
+<script src="tools.js"></script>
 </body>
 </html>

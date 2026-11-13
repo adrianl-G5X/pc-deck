@@ -4,7 +4,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { parseKeys, pressKeys, changeAppVolume, changeSystemVolume, showWindow, focusFolder, foregroundProcess, typeText, showOsd } = require('./keys');
+const { audioDevices, setAudioDevice, screenOff, parseKeys, pressKeys, changeAppVolume, changeSystemVolume, changeMic, showWindow, focusFolder, foregroundProcess, typeText, showOsd } = require('./keys');
 
 // ---------- Navigateurs ----------
 const BROWSERS = ['chrome', 'msedge', 'firefox', 'opera', 'brave', 'vivaldi'];
@@ -86,6 +86,7 @@ async function openUrl(action) {
     if (procs.length) await showWindow(procs, 'front');
     return null;
   }
+  if (/^[a-z]:[\\/]|^\\\\/i.test(action.target) && !fs.existsSync(action.target.replace(/[\\/]+$/, ''))) throw new Error(`fichier ou dossier introuvable : ${action.target}`);
   // Dossier ou fichier déjà ouvert : on ramène sa fenêtre au lieu d'en ouvrir une autre
   if (!action.newInstance) {
     const target = action.target.replace(/[\\/]+$/, '');
@@ -101,12 +102,45 @@ async function openUrl(action) {
 
 // Programme : déjà ouvert -> sa fenêtre revient au premier plan (restaurée si réduite) ;
 // sinon -> lancé. "newInstance" : toujours lancer une nouvelle fenêtre.
+// Appli du Store : nom de son programme (ex. « AppleInc.AppleMusicWin_…!App » -> « applemusic »), lu dans
+// le manifeste du paquet Windows ; gardé en mémoire une fois trouvé.
+const storeProcs = new Map();
+function storeProcess(appId) {
+  if (storeProcs.has(appId)) return Promise.resolve(storeProcs.get(appId));
+  const script = `$id = $env:PCDECK_APPID -split '!'; $pkg = Get-AppxPackage | Where-Object { $_.PackageFamilyName -eq $id[0] } | Select-Object -First 1
+if ($pkg) { $apps = @((Get-AppxPackageManifest $pkg).Package.Applications.Application)
+  $app = $apps | Where-Object { $_.Id -eq $id[1] } | Select-Object -First 1; if (-not $app) { $app = $apps[0] }
+  [IO.Path]::GetFileNameWithoutExtension($app.Executable) }`;
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, timeout: 15000, env: { ...process.env, PCDECK_APPID: appId } }, (err, out) => {
+      const name = err ? null : String(out || '').trim().toLowerCase();
+      if (name !== null && /^[\w.-]+$/.test(name)) storeProcs.set(appId, name);
+      resolve(name === null ? null : /^[\w.-]+$/.test(name) ? name : ''); // '' = aucun paquet de ce nom : pas installée
+    });
+  });
+}
+
 async function runApp(action) {
-  if (action.appId) return launch('explorer.exe', [`shell:AppsFolder\\${action.appId}`]); // appli du Store : Windows réaffiche la fenêtre existante
-  const proc = processOf(action.path);
   // Écran choisi : "primary" / "secondary" = en grand sur cet écran ; sinon là où il était
   const where = ['primary', 'secondary'].includes(action.screen) ? action.screen : 'front';
+  if (action.appId) {
+    // Appli du Store : déjà ouverte -> sa fenêtre revient au premier plan (sur l'écran choisi) ; sinon -> lancée puis placée
+    const sproc = await storeProcess(action.appId);
+    if (sproc === '') throw new Error(`appli du Store introuvable : ${action.appId}`);
+    if (sproc && !action.newInstance && (await showWindow([sproc], where))) return null;
+    await launch('explorer.exe', [`shell:AppsFolder\\${action.appId}`]);
+    if (sproc && where !== 'front') {
+      for (let i = 0; i < 30; i++) {
+        await sleep(500);
+        if (await showWindow([sproc], where)) break;
+      }
+    }
+    return null;
+  }
+  const proc = processOf(action.path);
   if (!action.newInstance && (await showWindow([proc], where))) return null;
+  // Chemin complet qui n'existe plus (programme déplacé, désinstallé) : message clair plutôt qu'une erreur de Windows
+  if (/^[a-z]:[\\/]|^\\\\/i.test(action.path) && !fs.existsSync(action.path)) throw new Error(`programme introuvable : ${action.path}`);
   await launch(action.path, action.args || []);
   if (where !== 'front') {
     for (let i = 0; i < 30; i++) { // on attend sa fenêtre pour la placer
@@ -279,8 +313,60 @@ async function runAction(action, context = {}) {
       return runTab(action, context);
     case 'lock':
       return launch('rundll32.exe', ['user32.dll,LockWorkStation']);
+    case 'mic': {
+      const r = await changeMic('mute');
+      if (!r) throw new Error('aucun micro branché sur le PC');
+      return r.muted ? 'Micro coupé' : 'Micro activé';
+    }
+    case 'http': { // la réponse n'est pas lue : seul compte « accepté » ou non
+      const res = await fetch(action.url, {
+        method: action.method,
+        headers: { ...(action.body ? { 'Content-Type': /^\s*[{[]/.test(action.body) ? 'application/json' : 'text/plain' } : {}), ...(action.token ? { Authorization: `Bearer ${action.token}` } : {}) },
+        body: action.method === 'GET' ? undefined : action.body || undefined,
+        signal: AbortSignal.timeout(6000),
+      }).catch((err) => { throw new Error(`${new URL(action.url).host} ne répond pas (${err.name === 'TimeoutError' ? 'délai dépassé' : 'introuvable sur le réseau'})`); });
+      if (!res.ok) throw new Error(`${new URL(action.url).host} a refusé la demande (code ${res.status}${res.status === 401 ? ' : jeton refusé' : ''})`);
+      return null;
+    }
+    case 'audio': { // sortie son : celle dont le nom contient « device », sinon la suivante de la liste
+      const list = (await audioDevices(0)).filter((d) => !/steam streaming/i.test(d.name));
+      if (!list.length) throw new Error('aucune sortie son trouvée');
+      const cur = list.findIndex((d) => d.current);
+      const next = action.device ? list.find((d) => d.name.toLowerCase().includes(action.device.toLowerCase())) : list[(cur + 1) % list.length];
+      if (!next) throw new Error(`sortie son « ${action.device} » introuvable (branchée ?)`);
+      await setAudioDevice(next.id);
+      return `Son sur ${next.name.replace(/\s*\(.*\)$/, '') || next.name}`;
+    }
+    case 'screenoff':
+      await screenOff();
+      return 'Écran éteint (bouge la souris pour le rallumer)';
+    case 'powerplan': { // modes d'alimentation fournis par Windows
+      const plans = { saver: ['SCHEME_MAX', "Économie d'énergie"], balanced: ['SCHEME_BALANCED', 'Équilibré'], performance: ['SCHEME_MIN', 'Performances élevées'] };
+      const [scheme, label] = plans[action.plan];
+      await new Promise((resolve, reject) => execFile('powercfg.exe', ['/setactive', scheme], { windowsHide: true }, (err) => (err ? reject(new Error("mode d'alimentation indisponible sur ce PC")) : resolve())));
+      return `Alimentation : ${label}`;
+    }
+    case 'brightness': { // écran d'un portable (les écrans de PC fixe se règlent avec leurs boutons)
+      const ps = "$b = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness -ErrorAction Stop | Select-Object -First 1; " +
+        "$v = [Math]::Max(0, [Math]::Min(100, $b.CurrentBrightness + [int]$env:PCDECK_STEP)); " +
+        "Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Invoke-CimMethod -MethodName WmiSetBrightness -Arguments @{Timeout=1; Brightness=[byte]$v} | Out-Null; $v";
+      const out = await new Promise((resolve, reject) => execFile('powershell.exe', ['-NoProfile', '-Command', ps], { windowsHide: true, timeout: 10000, env: { ...process.env, PCDECK_STEP: action.op === 'up' ? '10' : '-10' } },
+        (err, o) => (err ? reject(new Error("luminosité réglable seulement sur l'écran d'un PC portable")) : resolve(String(o).trim()))));
+      return `Luminosité : ${out} %`;
+    }
+    case 'power':
+      if (action.op === 'sleep') { // veille (et pas la mise en veille prolongée de rundll32)
+        return launch('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command',
+          "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)"]);
+      }
+      return launch('shutdown.exe', [action.op === 'restart' ? '/r' : '/s', '/t', '0']);
     case 'wait':
       return sleep(action.ms);
+    case 'obs':
+      return require('./obs').runObs(action);
+    case 'page': // la tablette change de page elle-même
+    case 'timer': // géré par le serveur (minuteurs partagés entre les appareils)
+      return null;
     case 'macro':
       for (const step of action.steps) await runAction(step, context);
       return null;

@@ -49,7 +49,7 @@ Copy-Tree (Join-Path $root 'server') (Join-Path $stage 'server') @('*.test.js')
 Copy-Tree (Join-Path $root 'client') (Join-Path $stage 'client')
 Copy-Tree (Join-Path $root 'extension') (Join-Path $stage 'extension')
 New-Item -ItemType Directory -Force (Join-Path $stage 'tools') | Out-Null
-Copy-Item (Join-Path $PSScriptRoot 'lhm-task.xml'), (Join-Path $PSScriptRoot 'register-lhm-task.ps1'), (Join-Path $PSScriptRoot 'setup-tailscale.ps1') (Join-Path $stage 'tools')
+Copy-Item (Join-Path $PSScriptRoot 'lhm-task.xml'), (Join-Path $PSScriptRoot 'register-lhm-task.ps1'), (Join-Path $PSScriptRoot 'setup-tailscale.ps1'), (Join-Path $PSScriptRoot 'setup-rtss.ps1') (Join-Path $stage 'tools')
 if (-not $Compiled) { Copy-Item (Join-Path $root 'tools\tray.ps1'), (Join-Path $root 'tools\launch-hidden.vbs') (Join-Path $stage 'tools') }
 Copy-Item (Join-Path $root 'config.default.json'), (Join-Path $root 'templates.json'), (Join-Path $root 'package.json'), (Join-Path $root 'package-lock.json') $stage
 Push-Location $stage
@@ -137,7 +137,8 @@ $helpers = @(
   @{ Name = 'keys';    Define = 'KEYS';    Refs = @('System.Windows.Forms.dll', 'System.Drawing.dll') },
   @{ Name = 'screen';  Define = 'SCREEN';  Refs = @('System.Windows.Forms.dll', 'System.Drawing.dll') },
   @{ Name = 'netmon';  Define = 'NETMON';  Refs = @() },
-  @{ Name = 'procmon'; Define = 'PROCMON'; Refs = @() }
+  @{ Name = 'procmon'; Define = 'PROCMON'; Refs = @() },
+  @{ Name = 'audio';   Define = 'AUDIO';   Refs = @() }
 )
 foreach ($h in $helpers) {
   $text = [IO.File]::ReadAllText((Join-Path $root "server\$($h.Name).ps1"))

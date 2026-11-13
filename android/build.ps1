@@ -33,10 +33,16 @@ function Run($exe, [string[]]$argList) {
   if ($LASTEXITCODE -ne 0) { throw "Échec : $exe" }
 }
 
-# Version : une seule source, package.json (ex. 1.2.3 -> code 10203, toujours croissant)
+# Version : une seule source, package.json, plus un numero de fabrication (00 a 99) qui augmente a chaque
+# APK fabrique sur ce PC (fichier build-number.txt). Ex. 0.4.2, 3e fabrication -> code 40203.
+# Un nouveau numero = la tablette propose toute seule la mise a jour (fournie par le PC).
 $version = (Get-Content (Join-Path $here '..\package.json') -Raw | ConvertFrom-Json).version
 $v = $version.Split('-')[0].Split('.')
-$versionCode = [int]$v[0] * 10000 + [int]$v[1] * 100 + [int]$v[2]
+$bnFile = Join-Path $here 'build-number.txt'
+$bn = 0
+if (Test-Path $bnFile) { $bn = [int](Get-Content $bnFile -Raw) }
+if (-not $env:CI) { $bn = [Math]::Min(99, $bn + 1); Set-Content -Path $bnFile -Value $bn -Encoding ASCII } # publication GitHub : 00
+$versionCode = ([int]$v[0] * 10000 + [int]$v[1] * 100 + [int]$v[2]) * 100 + $bn
 
 Write-Host '1/5 Ressources...'
 Run "$bt\aapt2.exe" @('compile', '--dir', (Join-Path $here 'res'), '-o', "$out\res.zip")

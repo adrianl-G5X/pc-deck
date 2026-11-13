@@ -1,7 +1,7 @@
 // Points d'entrée des programmes compilés (pcdeck-keys.exe, pcdeck-screen.exe, pcdeck-netmon.exe,
 // pcdeck-procmon.exe). Le code qui fait le travail est celui des scripts server\*.ps1 (extrait à la
 // construction) : mêmes ordres reçus sur l'entrée standard, mêmes réponses. Langage : C# 5.
-// Compilé avec /define:KEYS, SCREEN, NETMON ou PROCMON pour garder un seul fichier.
+// Compilé avec /define:KEYS, SCREEN, NETMON, PROCMON ou AUDIO pour garder un seul fichier.
 using System;
 using System.Globalization;
 using System.Text;
@@ -52,6 +52,33 @@ static class Program {
                     case "sysvol":
                         reply = PcDeck.AppVolume.ChangeSystem(p[1], int.Parse(p[2]));
                         break;
+                    case "mouse":
+                    case "clipget":
+                    case "clipset":
+                        reply = PcDeck.Extra.Run(p);
+                        break;
+                    case "wins":
+                        reply = PcDeck.Windows.List();
+                        break;
+                    case "win":
+                        reply = PcDeck.Windows.Act(long.Parse(p[1]), p[2]);
+                        break;
+                    case "screenoff":
+                        PcDeck.Windows.ScreenOff();
+                        reply = "ok";
+                        break;
+                    case "devices":
+                        reply = PcDeck.AudioDevices.List(int.Parse(p[1]));
+                        break;
+                    case "setdev":
+                        reply = PcDeck.AudioDevices.SetDefault(p[1]);
+                        break;
+                    case "micvol":
+                        reply = PcDeck.AppVolume.ChangeMic(p[1]);
+                        break;
+                    case "mixer":
+                        reply = PcDeck.AppVolume.Mixer();
+                        break;
                     default:
                         reply = "error ordre inconnu";
                         break;
@@ -90,6 +117,8 @@ static class Program {
         PcDeckNet.Monitor.Run(args.Length > 0 ? int.Parse(args[0]) : 0);
 #elif PROCMON
         PcDeckProc.Monitor.Run(args.Length > 0 ? int.Parse(args[0]) : 0);
+#elif AUDIO
+        PcDeckAudio.Loopback.Run(args.Length > 0 ? int.Parse(args[0]) : 0);
 #endif
         return 0;
     }

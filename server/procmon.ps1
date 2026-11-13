@@ -2,7 +2,10 @@
 # Utilise la meme source que le Gestionnaire des taches (NtQuerySystemInformation),
 # qui voit tous les programmes, y compris ceux lances en administrateur.
 # Ecrit toutes les 2 secondes une ligne JSON :
-#   {"cpu":[{"name":"opera","percent":3.2},...],"mem":[{"name":"opera","bytes":123456},...]}
+#   {"cpu":[{"name":"opera","percent":3.2},...],"mem":[{"name":"opera","bytes":123456},...],"fg":"opera"}
+# - fg      : programme de la fenetre au premier plan (profils automatiques de la tablette)
+# - fps     : images par seconde du jeu au premier plan, lues dans RivaTuner Statistics Server
+#             (installe avec MSI Afterburner) ; absent si RivaTuner ne tourne pas ou ne voit pas le jeu
 # - percent : part de TOUT le processeur (tous les coeurs), comme le Gestionnaire des taches
 # - bytes   : memoire privee (colonne "Memoire" du Gestionnaire des taches)
 # Les processus d'un meme programme (ex. les nombreux "opera") sont additionnes.
@@ -20,8 +23,38 @@ namespace PcDeckProc {
   public static class Monitor {
     [DllImport("ntdll.dll")]
     static extern int NtQuerySystemInformation(int infoClass, IntPtr buffer, int length, out int needed);
+    // Appli au premier plan (profils automatiques de la tablette)
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
 
     struct Sample { public string Name; public long Cpu; public long Mem; }
+
+    // Images par seconde d'un programme, d'apres la memoire partagee de RivaTuner ("RTSSSharedMemoryV2").
+    // En-tete : signature "RTSS", version, taille d'une entree, debut et nombre d'entrees.
+    // Entree : pid (0), nom (4, 260 octets), drapeaux (264), temps 0 et 1 en ms (268, 272), images (276).
+    [DllImport("kernel32.dll")] static extern IntPtr OpenFileMapping(uint access, bool inherit, string name);
+    [DllImport("kernel32.dll")] static extern IntPtr MapViewOfFile(IntPtr map, uint access, uint high, uint low, UIntPtr size);
+    [DllImport("kernel32.dll")] static extern bool UnmapViewOfFile(IntPtr view);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    public static int Fps(uint pid) {
+      IntPtr map = OpenFileMapping(4, false, "RTSSSharedMemoryV2"); // FILE_MAP_READ
+      if (map == IntPtr.Zero) return -1;
+      IntPtr v = MapViewOfFile(map, 4, 0, 0, UIntPtr.Zero);
+      try {
+        if (v == IntPtr.Zero || Marshal.ReadInt32(v, 0) != 0x52545353) return -1; // "RTSS"
+        int entrySize = Marshal.ReadInt32(v, 8), arrOffset = Marshal.ReadInt32(v, 12), count = Marshal.ReadInt32(v, 16);
+        for (int i = 0; i < count && i < 256; i++) {
+          IntPtr e = new IntPtr(v.ToInt64() + arrOffset + (long)i * entrySize);
+          if ((uint)Marshal.ReadInt32(e, 0) != pid) continue;
+          uint t0 = (uint)Marshal.ReadInt32(e, 268), t1 = (uint)Marshal.ReadInt32(e, 272), frames = (uint)Marshal.ReadInt32(e, 276);
+          return t1 > t0 ? (int)Math.Round(1000.0 * frames / (t1 - t0)) : -1;
+        }
+        return -1;
+      } finally {
+        if (v != IntPtr.Zero) UnmapViewOfFile(v);
+        CloseHandle(map);
+      }
+    }
 
     // pid -> (nom, temps processeur cumule en 100 ns, memoire privee)
     static Dictionary<long, Sample> Read() {
@@ -108,7 +141,13 @@ namespace PcDeckProc {
           if (i > 0) sb.Append(',');
           sb.Append("{\"name\":").Append(Json(topMem[i].Key)).Append(",\"bytes\":").Append(topMem[i].Value).Append('}');
         }
-        sb.Append("]}");
+        uint fgPid; GetWindowThreadProcessId(GetForegroundWindow(), out fgPid);
+        Sample fg;
+        sb.Append("],\"fg\":").Append(now.TryGetValue(fgPid, out fg) ? Json(fg.Name) : "\"\"");
+        int fps = -1;
+        try { fps = Fps(fgPid); } catch { }
+        if (fps >= 0) sb.Append(",\"fps\":").Append(fps);
+        sb.Append('}');
         Console.WriteLine(sb.ToString());
       }
     }

@@ -5,10 +5,55 @@ le script de publication les range sous le bon numéro, et elles s'affichent dan
 notification de mise à jour de tes proches.
 
 ## Prochaine version
+- Tablette et téléphone : Outils → Cet appareil affiche les données utilisées par PC Deck (aujourd'hui et 30 jours, écran du PC, fichiers et vidéos, le reste).
+- Toutes les vidéos du PC se lisent sur la tablette (4K HEVC des drones et téléphones, MKV…) : le PC les convertit à la volée (ffmpeg, installé en 1 clic). PDF, musique, textes et documents s'ouvrent aussi dans l'appli.
+- Tablette, menu « Outils » : fenêtres ouvertes du PC, lancer n'importe quel programme, fichiers du PC à télécharger, capture d'écran, historique du presse-papiers, dictée et commandes vocales, fond d'écran et son des touches, plusieurs PC.
+- Choix de la sortie son (casque, enceintes…) dans le mélangeur et sur un bouton ; lecteur avec −10 s / +10 s et barre cliquable (YouTube, Netflix…).
+- Nouveaux boutons : éteindre l'écran, mode d'alimentation, luminosité (portable), boutons à plusieurs états, valeur affichée sous le nom (température, volume, heure…), lumière qui montre son état (Home Assistant).
+- Famille : temps d'écran par programme et limite par jour (le programme se ferme à la limite).
+- Fermer un programme figé depuis le détail processeur / mémoire ; « Les plus utilisés » dans les Paramètres ; Pack Canapé.
+- Plus simple pour débuter : nom sous les icônes de la tablette, écran « Le PC ne répond pas » qui dit quoi vérifier, erreurs qui restent affichées avec « Réessayer », astuces au premier lancement.
+- Paramètres : mode simple (l'essentiel) et mode avancé, « Annuler » sur les 20 derniers changements, aide intégrée et diagnostic « Pourquoi ça ne marche pas ? ».
+- Sauvegarde automatique des réglages chaque jour (7 jours) avec retour en arrière, et « Tout remettre à zéro ».
+- Modèles prêts à l'emploi : Gaming, Musique, Bureautique, Montage vidéo.
+- Tablette : veille avec grande horloge, disposition verrouillable (enfants, invités).
+- Le code de connexion se renouvelle tout seul ; la fin d'un minuteur s'affiche en notification Windows.
+- Écran du PC sur la tablette : bouton « Son » pour entendre le son du PC sur l'appareil qui regarde.
+- Nouveaux interrupteurs sur la tablette : curseur qui glisse, petites animations, état affiché, micro coupé en rouge.
+- Page Paramètres plus claire : menu à gauche, une section à la fois, moins de texte (détails dans les « ? »), thème clair ou sombre.
+- Boutons qui s'allument en rouge quand le micro est coupé, le son coupé, ou quand OBS enregistre ou est en direct.
+- Nouveaux boutons : couper / remettre le micro ; éteindre, redémarrer ou mettre le PC en veille (toujours avec « Tu es sûr ? ») ; lumières et requêtes web (Home Assistant, Philips Hue, webhooks).
+- Appli Android : bouton « Allumer le PC » quand le PC est éteint ou en veille (Wake-on-LAN, à activer sur le PC).
+- Actions programmées : un bouton lancé tout seul à une heure choisie (ex. éteindre le PC à 23 h) ; pour éteindre, redémarrer ou mettre en veille, le PC et la tablette demandent d'abord « Le lancer maintenant ? » (annulé sans réponse en 2 minutes).
+- Pavé tactile sur la tablette : souris, clics, défilement à deux doigts, texte tapé sur le PC et presse-papiers partagé.
+- Envoyer une photo ou un fichier du téléphone vers le PC, dans le dossier de ton choix (Paramètres → Avancé ; par défaut Téléchargements\PC Deck).
+- Météo sur la tablette (ville à choisir dans les Paramètres) ; toucher la carte affiche le détail : heure par heure, 7 jours, vent, pluie, soleil.
+- Prochains rendez-vous sur la tablette, depuis le lien iCal de ton agenda Google, Outlook ou iCloud.
+- FPS du jeu en cours dans la tuile Carte graphique. Paramètres → Affichage → « Installer (1 clic) » installe et lance RivaTuner tout seul.
+- Modèle Discord : micro et casque.
+- Quand un bouton échoue, la tablette explique le problème et la solution (« Apple Music n'est pas installé : modifie le bouton ») au lieu d'un message technique.
+- Morceau en cours : accents corrigés, carte plus grande, et lecteur plein écran (toucher la carte) avec pochette, précédent / pause / suivant, volume de l'appli de musique et paroles à droite (option, cherchées en ligne sur lrclib.net).
+- Tablette : appui long sur un bouton pour le renommer, le déplacer, changer sa page ou le mettre de côté ; cercle de chargement puis ✓ ou ✗ ; vibration au toucher ; mode « boutons seuls » ; taille des boutons réglable.
+- Fenêtre d'un bouton plus simple : les réglages avancés sont repliés sous « Plus d'options », un aperçu montre le bouton tel qu'il sera sur la tablette, et « Tester » lance l'action sur le PC sans l'enregistrer.
+- Paramètres : plus besoin de cliquer sur « Enregistrer », chaque changement s'applique tout seul (avec « Annuler » pendant quelques secondes).
+- Ajouter un bouton en 1 clic : PC Deck propose les programmes ouverts sur le PC et des sites courants.
+- Assistant de bienvenue après l'installation : connecter la tablette, choisir ses boutons, choisir un thème.
+- En tapant un nom de programme ou de site (Discord, YouTube…), PC Deck propose le bon chemin ou la bonne adresse.
+- Pages de boutons : range tes boutons sur plusieurs pages (Jeux, Travail, Musique…). Sur la tablette, onglets en haut et glisser le doigt pour changer de page ; un bouton « dossier » ouvre une page.
+- Pages automatiques : quand un programme passe au premier plan sur le PC (un jeu…), la tablette affiche sa page.
+- Macros : un bouton peut enchaîner plusieurs actions (ouvrir des programmes, raccourcis, volume…) avec des pauses, réglables dans les Paramètres.
+- Morceau en cours : pochette, titre, artiste et progression du morceau (Apple Music, Spotify…) sur la tablette.
+- Mélangeur de volume : un curseur pour Windows et pour chaque appli qui joue du son.
+- Minuteur et chronomètre sur un bouton, avec une alerte sur le PC à la fin.
+- OBS Studio : boutons pour changer de scène, lancer ou arrêter l'enregistrement ou le direct, couper le micro.
+- iPhone : deux icônes possibles sur l'écran d'accueil, « PC Deck Maison » (Wi-Fi de la maison, sans VPN) et « PC Deck Dehors » (Tailscale), chacune avec sa propre image.
+- Logos : un logo qui se voit mal sur les touches (noir sur thème sombre, blanc sur thème clair) reçoit tout seul un petit fond contrasté. En thème sombre, les logos à carré blanc (Apple Music, iCloud…) perdent ce carré ; une note noire devient de la couleur du texte.
+- Écran du PC sur la tablette : le bouton « Clavier » affiche aussi les touches spéciales (Échap, Tab, Win, Alt+Tab, Copier, Coller, Annuler, Tout, Suppr, flèches) ; l'écran choisi sur un PC à 2 écrans est retenu.
+- Paramètres : le thème est à gauche de l'aperçu de la tablette, les infos affichées à droite.
 - Installation : PC Deck se lance toujours à la fin de l'installeur (plus de case à cocher). Si la page Paramètres ne trouve pas PC Deck, elle explique quoi faire.
 - Thème personnalisable : couleur du fond, des touches, du texte et des deux courbes réseau en plus de l'accent (Paramètres → Affichage), 6 thèmes prêts à l'emploi (Graphite, Papier, Minuit, Forêt, Violet, Rose). Les logos prennent la couleur des touches.
 - Vrais logos : un bouton de site, de programme, de fichier ou d'onglet peut afficher le logo du programme ou du site à la place de l'icône (case « Utiliser le vrai logo », cochée pour un nouveau bouton). Le PC les récupère et les envoie à tous les appareils, qui les mettent à jour tout seuls. Trouvés en direct, même pour les applis du Store, les dossiers ou n'importe quelle appli installée (par son nom) ; on peut aussi choisir le logo d'une autre appli ou envoyer sa propre image.
-- Écran du PC sur la tablette : choix de la résolution (720p, 1080p, Max = la plus grande image que l'appareil peut afficher).
+- Écran du PC : sur un ordinateur, choix de la résolution (720p, 1080p, Max = la plus grande image que l'appareil peut afficher) ; sur téléphone et tablette, 1080p, qui passe tout seul en 720p en données mobiles ou si l'image consomme trop.
 - Réseau : le graphique suit tout seul la connexion utilisée (câble Ethernet ou Wi-Fi) et affiche « Câble (Ethernet) » ou « Wi-Fi » ; il bascule si tu branches ou débranches le câble.
 - Extension du navigateur : elle fonctionne aussi dans Firefox (à faire signer par Mozilla, voir DEVELOPPEUR.md).
 - Paramètres : une case « activé » à côté de chaque interrupteur, de chaque appli de son et du « Volume par grands pas ». Décochée, l'élément disparaît de la tablette mais garde tous ses réglages.
