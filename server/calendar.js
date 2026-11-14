@@ -39,7 +39,7 @@ const WEEKDAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 // Dates de début d'un événement répété, entre from et to (ms).
 // shortcut: BYDAY n'est compris que pour les répétitions hebdomadaires (pas « 1er lundi du mois »), BYMONTHDAY/BYSETPOS ignorés
-function occurrences(startMs, rrule, exdates, from, to) {
+function occurrences(startMs, rrule, exdates, from, to, tz) {
   const r = Object.fromEntries(rrule.split(';').map((x) => x.split('=')));
   const freq = r.FREQ, interval = Math.max(1, +r.INTERVAL || 1);
   const until = r.UNTIL ? parseDate(r.UNTIL)?.ms ?? Infinity : Infinity;
@@ -47,17 +47,23 @@ function occurrences(startMs, rrule, exdates, from, to) {
   const days = freq === 'WEEKLY' && r.BYDAY ? r.BYDAY.split(',').map((d) => WEEKDAYS.indexOf(d.slice(-2))).filter((d) => d >= 0) : null;
   const out = [];
   let n = 0;
+  // Avec un fuseau (TZID) : on compte les jours sur l'heure « du mur » de ce fuseau (la réunion de 18 h reste à 18 h
+  // après le changement d'heure), quel que soit le fuseau de ce PC. Sans fuseau : heure de ce PC.
+  const U = tz ? 'UTC' : '';
+  const wallOf = (ms) => (tz ? ms + tzOffset(ms, tz) : ms);
+  const msOf = (wall) => { if (!tz) return wall; try { const g = wall - tzOffset(wall, tz); return wall - tzOffset(g, tz); } catch { return wall; } };
+  const start = wallOf(startMs);
   for (let i = 0; i < 5000 && n < count; i++) {
-    const base = new Date(startMs);
-    if (freq === 'DAILY') base.setDate(base.getDate() + i * interval);
-    else if (freq === 'WEEKLY') base.setDate(base.getDate() + i * 7 * interval);
-    else if (freq === 'MONTHLY') base.setMonth(base.getMonth() + i * interval);
-    else if (freq === 'YEARLY') base.setFullYear(base.getFullYear() + i * interval);
+    const base = new Date(start);
+    if (freq === 'DAILY') base[`set${U}Date`](base[`get${U}Date`]() + i * interval);
+    else if (freq === 'WEEKLY') base[`set${U}Date`](base[`get${U}Date`]() + i * 7 * interval);
+    else if (freq === 'MONTHLY') base[`set${U}Month`](base[`get${U}Month`]() + i * interval);
+    else if (freq === 'YEARLY') base[`set${U}FullYear`](base[`get${U}FullYear`]() + i * interval);
     else break;
     // Semaine avec plusieurs jours (ex. lundi et jeudi) : chaque jour de cette semaine-là
-    const week = days ? days.map((d) => { const x = new Date(base); x.setDate(x.getDate() + ((d - base.getDay() + 7) % 7)); return x; }).sort((a, b) => a - b) : [base];
+    const week = days ? days.map((d) => { const x = new Date(base); x[`set${U}Date`](x[`get${U}Date`]() + ((d - base[`get${U}Day`]() + 7) % 7)); return x; }).sort((a, b) => a - b) : [base];
     for (const day of week) {
-      const ms = day.getTime();
+      const ms = msOf(day.getTime());
       if (ms < startMs) continue;
       if (ms > until || n >= count || ms > to) return out;
       n++;
@@ -81,7 +87,7 @@ function nextEvents(text, now = Date.now()) {
     const value = line.slice(i + 1);
     const tz = params.find((p) => p.startsWith('TZID='))?.slice(5).replace(/^"|"$/g, '');
     if (name === 'SUMMARY') ev.title = value.replace(/\\([,;\\])/g, '$1').replace(/\\n/gi, ' ');
-    else if (name === 'DTSTART') ev.start = parseDate(value, tz);
+    else if (name === 'DTSTART') { ev.start = parseDate(value, tz); ev.tz = tz; }
     else if (name === 'DTEND') ev.end = parseDate(value, tz);
     else if (name === 'DURATION') ev.duration = parseDuration(value);
     else if (name === 'RRULE') ev.rrule = value;
@@ -94,7 +100,7 @@ function nextEvents(text, now = Date.now()) {
   for (const e of events) {
     if (!e.start || e.cancelled || e.override) continue;
     const length = e.end ? e.end.ms - e.start.ms : e.duration || (e.start.allDay ? DAY : 0);
-    const starts = e.rrule ? occurrences(e.start.ms, e.rrule, e.exdates, now - length, to) : [e.start.ms];
+    const starts = e.rrule ? occurrences(e.start.ms, e.rrule, e.exdates, now - length, to, e.tz) : [e.start.ms];
     for (const s of starts) {
       if (s + Math.max(length, 1) > now && s <= to) list.push({ title: e.title || '(sans titre)', start: s, end: s + length, allDay: e.start.allDay });
     }
