@@ -101,6 +101,12 @@
   dialog { background: var(--rack); color: var(--text); border: 1px solid var(--key-top); border-radius: 12px; padding: 0;
     width: min(620px, calc(100% - 24px)); max-height: calc(100% - 24px); }
   dialog::backdrop { background: rgba(8, 9, 10, .7); }
+  /* Assistant de bienvenue : tient toujours dans la fenêtre (rien à déplacer), boutons du bas toujours visibles */
+  #welcome { width: min(860px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: hidden; }
+  #welcome form { display: flex; flex-direction: column; max-height: calc(100vh - 26px); overflow: hidden; }
+  #welcome form > section { overflow-y: auto; overflow-x: hidden; min-height: 0; flex: 1 1 auto; }
+  #welcome .dlg-actions { flex: none; }
+  #wzConnect { width: 100%; height: clamp(260px, calc(100vh - 290px), 520px); border: 1px solid var(--key-top); border-radius: 10px; background: var(--rack); display: block; }
   dialog form { padding: 20px 22px; }
   dialog h3 { margin: 0 0 6px; font-size: 20px; }
   .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; margin-top: 4px; }
@@ -557,12 +563,12 @@
 
 <!-- Assistant du premier lancement : connecter la tablette, choisir ses boutons, choisir un thème -->
 <dialog id="welcome">
-  <form method="dialog" style="padding:20px 22px;width:min(760px,94vw)">
+  <form method="dialog">
     <div class="wz-steps" aria-hidden="true"><span>1. Tablette</span><span>2. Boutons</span><span>3. Thème</span></div>
     <section data-step="1">
       <h3 style="margin:6px 0 4px">Bienvenue dans PC Deck !</h3>
       <p class="hint">D'abord, connecte ta tablette ou ton téléphone : scanne le code avec son appareil photo.</p>
-      <iframe id="wzConnect" title="Connecter un appareil" style="width:100%;height:430px;border:1px solid var(--key-top);border-radius:10px;background:var(--rack)"></iframe>
+      <iframe id="wzConnect" title="Connecter un appareil"></iframe>
       <p class="ok" id="wzPaired" hidden>✓ Appareil connecté ! Passe à l'étape suivante.</p>
     </section>
     <section data-step="2" hidden>
@@ -2084,7 +2090,7 @@
   function wzOpen(devices) {
     wzDevices = devices;
     $('wzPaired').hidden = true;
-    $('wzConnect').src = '/connect';
+    $('wzConnect').src = '/connect?embed=1'; // version compacte, faite pour tenir dans l'assistant
     wzShow(1);
     $('welcome').showModal();
     clearInterval(wzTimer);

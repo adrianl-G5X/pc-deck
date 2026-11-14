@@ -24,6 +24,9 @@ static class Program {
     static void Main() {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        // Une erreur dans un minuteur ou un clic ne doit jamais afficher la fenêtre technique de .NET
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += delegate { };
         Application.Run(new TrayApp());
     }
 }
@@ -78,7 +81,7 @@ class TrayApp : ApplicationContext {
         ToolStripMenuItem open = new ToolStripMenuItem("Ouvrir PC Deck");
         open.Click += delegate { OpenPage("/"); };
         ToolStripMenuItem log = new ToolStripMenuItem("Voir le journal");
-        log.Click += delegate { Process.Start("notepad.exe", "\"" + logOut + "\""); };
+        log.Click += delegate { try { Process.Start("notepad.exe", "\"" + logOut + "\""); } catch { } };
         ToolStripMenuItem restart = new ToolStripMenuItem("Redémarrer le serveur");
         restart.Click += delegate { StopServer(); Thread.Sleep(500); StartServer(); tray.ShowBalloonTip(2000, "PC Deck", "Serveur redémarré.", ToolTipIcon.Info); };
         ToolStripMenuItem quit = new ToolStripMenuItem("Quitter PC Deck");
@@ -209,7 +212,11 @@ class TrayApp : ApplicationContext {
     }
 
     void OpenPage(string page) {
-        try { Process.Start("http://localhost:" + Port() + page); } catch { }
+        string url = "http://localhost:" + Port() + page;
+        try { Process.Start(url); return; } catch { }
+        // Association « http » cassée ou navigateur désinstallé : l'Explorateur sait souvent l'ouvrir quand même
+        try { Process.Start("explorer.exe", "\"" + url + "\""); return; } catch { }
+        tray.ShowBalloonTip(10000, "PC Deck", "Le navigateur ne s'ouvre pas. Ouvre toi-même : " + url, ToolTipIcon.Warning);
     }
 
     // ---------- Réseau « Public » (Windows y bloque PC Deck) ----------

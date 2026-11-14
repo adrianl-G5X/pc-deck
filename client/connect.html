@@ -48,6 +48,16 @@
   .warn { color: var(--amber); }
   [hidden] { display: none !important; }
   small { color: var(--muted); }
+  /* Dans l'assistant de bienvenue (?embed=1) : compact, jamais plus large que la fenêtre */
+  body.embed main { padding: 12px 14px 16px; }
+  body.embed header { display: none; }
+  body.embed .tabs { margin-bottom: 12px; gap: 6px; }
+  body.embed .tabs button { font-size: 14px; padding: 8px 12px; }
+  body.embed .grid { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  body.embed .step { padding: 14px 16px 16px; }
+  body.embed .qr { width: min(190px, 100%, 52vh); height: auto; aspect-ratio: 1; } /* fenêtre basse : QR plus petits, visibles sans défiler */
+  body.embed .code { font-size: 36px; letter-spacing: 7px; }
+  body.embed .url { font-size: 16px; }
 </style>
 </head>
 <body>
@@ -148,6 +158,7 @@
 
 <script src="vendor/qrcode.js"></script>
 <script>
+  if (new URLSearchParams(location.search).has('embed')) document.body.classList.add('embed');
   const $ = (id) => document.getElementById(id);
   let info = null;
   let shownPaired = 0;

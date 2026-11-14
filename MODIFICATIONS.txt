@@ -464,6 +464,14 @@ NOUVEAUX BOUTONS ET OUTILS (12/11/2026)
   0.4.2 -> 40201, 40202... Chaque APK refait est donc propose tout seul a la tablette ("Mise a jour
   de l'appli" -> Installer ; Android demande une confirmation). Publication GitHub : xx00.
   scripts/make-manifest.js aligne (code x100).
+- Icone PC Deck (tray.ps1 et PC Deck.exe) : plus jamais la fenetre technique ".NET Framework - exception
+  non geree". Cause trouvee sur le portable : 5 s apres le demarrage, l'ouverture de la page de bienvenue
+  (Start-Process "http://...") echouait ("fichier specifie introuvable" : lien http du navigateur casse).
+  Maintenant : 1) navigateur par defaut, 2) sinon l'Explorateur, 3) sinon bulle "ouvre toi-meme <adresse>" ;
+  toute autre erreur d'un minuteur ou d'un clic est notee dans le journal au lieu d'afficher la fenetre.
+- Assistant de bienvenue (1er demarrage) : tient toujours dans la fenetre (plus de barre de defilement
+  sur le cote ni de fenetre a deplacer) ; boutons Suivant / Passer toujours visibles ; page de connexion
+  en version compacte (connect?embed=1), QR plus petits si la fenetre est basse. Verifie a 1020x680 et 760x560.
 - Messages de la tablette jusqu'a 512 Ko (avant 4 Ko) pour un long texte copie.
 - Tests : actions "power", "mic", "http", actions programmees, meteo.
 
