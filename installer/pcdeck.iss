@@ -91,6 +91,9 @@ begin
   Script := '$a = ''' + ExpandConstant('{app}') + '''; ' +
     'Get-CimInstance Win32_Process | Where-Object { @(''node.exe'',''powershell.exe'',''wscript.exe'',''LibreHardwareMonitor.exe'',''PC Deck.exe'',''pcdeck-keys.exe'',''pcdeck-screen.exe'',''pcdeck-netmon.exe'',''pcdeck-procmon.exe'') -contains $_.Name -and $_.CommandLine -and $_.CommandLine.Contains($a) -and $_.ProcessId -ne $PID } | ' +
     'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; ' +
+    // PC Deck lancé depuis un autre dossier (copie de développement, ancien emplacement) : sinon deux serveurs se disputent le port
+    'Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.ProcessId -ne $PID -and ((@(''node.exe'') -contains $_.Name -and $_.CommandLine.Contains(''server\server.js'')) -or (@(''powershell.exe'',''wscript.exe'') -contains $_.Name -and ($_.CommandLine.Contains(''tools\tray.ps1'') -or $_.CommandLine.Contains(''tools\launch-hidden.vbs'')))) } | ' +
+    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; ' +
     'Get-Process LibreHardwareMonitor -ErrorAction SilentlyContinue | Where-Object { $_.Path -like ($a + ''\*'') } | Stop-Process -Force -ErrorAction SilentlyContinue';
   Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
     '-NoProfile -ExecutionPolicy Bypass -Command "' + Script + '"', '', SW_HIDE, ewWaitUntilTerminated, Code);
@@ -131,6 +134,24 @@ begin
             mbConfirmation, MB_YESNO) = IDYES then
     Exec(PS, '-NoProfile -ExecutionPolicy Bypass -Command "Set-NetConnectionProfile -InterfaceAlias ' + Quoted + ' -NetworkCategory Private"',
       '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
+
+// PC Deck déjà installé : c'est une mise à jour. Les réglages et les appareils (%LOCALAPPDATA%\PC Deck)
+// ne sont jamais touchés ; on ne repose pas les questions (options gardées) et on va droit à l'installation.
+function IsUpgrade: Boolean;
+begin
+  Result := RegKeyExists(HKA, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B6E1D0A4-5C2F-4F7E-9A38-2D61C0E5F7A9}_is1');
+end;
+
+procedure InitializeWizard;
+begin
+  if IsUpgrade then
+    WizardForm.Caption := 'Mise à jour de PC Deck (réglages et appareils gardés)';
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := IsUpgrade and ((PageID = wpSelectDir) or (PageID = wpSelectTasks) or (PageID = wpReady));
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;

@@ -6,6 +6,10 @@ notification de mise à jour de tes proches.
 
 ## Prochaine version
 
+## 0.4.6 — 2026-11-14
+- Mise à jour : le bouton ouvre la page de téléchargement de la nouvelle version (en attendant que l’installeur soit signé, Windows peut le bloquer s’il est lancé tout seul).
+- Installer PC Deck alors qu’il est déjà là fait une simple mise à jour : pas de questions, réglages et appareils gardés, et plus de deuxième serveur qui tourne en même temps.
+
 ## 0.4.5 — 2026-11-14
 - Fond d’écran image ou vidéo : à choisir sur le PC (Paramètres → Affichage), pour toutes les tablettes ; chaque appareil peut le redimensionner, l’assombrir, mettre le sien ou n’en avoir aucun (Outils → Cet appareil).
 - Avec un fond d’écran, les boutons, cartes et graphiques deviennent translucides.

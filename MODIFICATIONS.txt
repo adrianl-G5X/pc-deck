@@ -1,8 +1,8 @@
-MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.5)
+MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.6)
 =========================================================
 Derniere mise a jour : 14/11/2026
-Rien depuis la 0.4.5 : les nouveautes de cette version sont dans CHANGELOG.md.
 (Ce fichier est mis a jour a chaque modification et a chaque push.)
+Rien depuis la 0.4.6 : les nouveautes de cette version sont dans CHANGELOG.md.
 
 A VERIFIER SUR LE MATERIEL
 - Lancer PC Deck : aucune fenetre noire, seulement l'icone pres de l'horloge.

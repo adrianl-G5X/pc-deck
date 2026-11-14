@@ -2177,10 +2177,9 @@
   }
   $('updCheck').addEventListener('click', async () => { $('updText').textContent = 'Vérification…'; showUpdate(await (await fetch('/api/update/check', { method: 'POST' })).json()); });
   $('updInstall').addEventListener('click', async () => {
-    if (!confirm('Installer la nouvelle version ? Tes réglages et tes appareils sont gardés. Windows va demander l\'autorisation, puis PC Deck redémarrera.')) return;
-    $('updText').textContent = 'Téléchargement et vérification de la mise à jour…';
     const r = await fetch('/api/update/install', { method: 'POST' });
     const res = await r.json();
+    if (r.ok && res.page) { $('updText').textContent = "La page de téléchargement s'ouvre : télécharge « PCDeck-Setup », puis lance-le. Tes réglages et tes appareils sont gardés."; return; }
     $('updText').textContent = r.ok ? 'Installation lancée : accepte la demande de Windows. Cette page se reconnectera après le redémarrage.' : 'Échec : ' + res.error;
     if (r.ok) setTimeout(async () => { try { const s = await (await fetch('/api/update')).json(); if (s.error) $('updText').textContent = 'Échec : ' + s.error; } catch {} }, 6000); // Windows a pu refuser de lancer l'installeur
   });

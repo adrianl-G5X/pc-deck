@@ -19,6 +19,8 @@ const REPO = pkg.pcdeck?.updateRepo || '';
 const API = process.env.PCDECK_UPDATE_URL || (REPO ? `https://api.github.com/repos/${REPO}/releases/latest` : null);
 const KEY_FILE = process.env.PCDECK_UPDATE_PUBKEY || path.join(__dirname, 'update-key.pem');
 const CHECK_EVERY_MS = 12 * 60 * 60 * 1000;
+// shortcut: installeur pas encore signé (Smart App Control le bloque) : « Installer » ouvre la page GitHub de la version ; repasser à false une fois signé (SignPath)
+const OPEN_RELEASE_PAGE = true;
 
 const state = {
   configured: !!API,
@@ -33,6 +35,7 @@ const state = {
 };
 let manifest = null;
 let assets = {};
+let releasePage = null;
 
 // "1.10.0" > "1.9.3"
 function newer(a, b) {
@@ -62,6 +65,7 @@ async function check() {
     if (r.status === 404) throw new Error('aucune version publiée');
     if (!r.ok) throw new Error(`GitHub a répondu ${r.status}`);
     const release = await r.json();
+    releasePage = String(release.html_url || '').startsWith('https://github.com/') ? release.html_url : null;
     assets = Object.fromEntries((release.assets || []).map((a) => [a.name, a.browser_download_url]));
     if (!assets['update.json'] || !assets['update.json.sig']) throw new Error('version publiée sans fichier de signature');
     const [data, sig] = await Promise.all([download(assets['update.json']), download(assets['update.json.sig'])]);
@@ -86,6 +90,11 @@ async function check() {
 // L'installeur ferme PC Deck, se met à jour et le relance tout seul.
 async function install() {
   if (!state.available || !manifest || state.installing) throw new Error('Aucune mise à jour à installer');
+  if (OPEN_RELEASE_PAGE && !process.env.PCDECK_UPDATE_DRYRUN) {
+    const page = releasePage || `https://github.com/${REPO}/releases/latest`;
+    spawn('explorer.exe', [page], { detached: true, stdio: 'ignore' }).unref();
+    return { page };
+  }
   state.installing = true;
   try {
     const data = await download(assets[manifest.setup.name], 10 * 60 * 1000);
