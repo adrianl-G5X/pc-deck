@@ -6,6 +6,13 @@ notification de mise à jour de tes proches.
 
 ## Prochaine version
 
+## 0.4.5 — 2026-11-14
+- Fond d’écran image ou vidéo : à choisir sur le PC (Paramètres → Affichage), pour toutes les tablettes ; chaque appareil peut le redimensionner, l’assombrir, mettre le sien ou n’en avoir aucun (Outils → Cet appareil).
+- Avec un fond d’écran, les boutons, cartes et graphiques deviennent translucides.
+- Nouveau graphique Disque (lecture / écriture du SSD et place utilisée).
+- Le nom du processeur, de la carte graphique et de la mémoire est affiché à côté de chaque mesure.
+- Mise à jour : si Windows bloque l’installeur, Paramètres explique pourquoi au lieu de ne rien dire.
+
 ## 0.4.4 — 2026-11-14
 - PC Deck ne fait plus apparaître de fenêtre noire au démarrage (Windows 11 avec Windows Terminal).
 - Boutons « Ouvrir un programme » : les jeux installés avec Steam et Epic Games sont proposés dans la liste.
