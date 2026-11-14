@@ -185,6 +185,8 @@
   .tablet { --t-mono: var(--t-text); --t-s1: #199e70; --t-s2: #c98500; }
   .ip-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .ip-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .wall-prev { height: 120px; border-radius: 8px; background: var(--bg-soft, #1b1d1f); display: grid; place-items: center; overflow: hidden; margin-bottom: 10px; }
+  .wall-prev img, .wall-prev video { width: 100%; height: 100%; object-fit: cover; }
   .ip-card { background: var(--t-key); border-top: 1px solid var(--t-top); border-radius: 7px; padding: 8px 10px; color: var(--t-text2);
     display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; }
   .ip-card small { font-size: 12px; color: var(--t-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -315,6 +317,16 @@
           <input type="color" id="accent">
           <div id="colorList"></div>
         </div>
+        <div class="card" id="wallCard">
+          <h3 class="t">Fond d'écran <span class="help" title="Image ou vidéo (jouée en boucle, sans son) derrière les boutons de toutes les tablettes et téléphones. Chaque appareil peut ensuite la redimensionner, l'assombrir, la remplacer par la sienne ou la retirer (Outils → Cet appareil). Enregistré tout de suite : pas besoin du bouton Enregistrer.">?</span></h3>
+          <div class="wall-prev" id="wallPrev"><small class="muted" id="wallNone">Aucun fond : fond uni du thème.</small></div>
+          <div class="tools">
+            <button class="btn small" type="button" id="wallPick">Choisir une image ou une vidéo</button>
+            <button class="btn small" type="button" id="wallClear" hidden>Retirer</button>
+            <input type="file" id="wallFile" accept="image/*,video/*" hidden>
+          </div>
+          <small class="muted" id="wallMsg">Jusqu'à 300 Mo. Une vidéo courte (10 à 30 s) est plus légère pour les tablettes.</small>
+        </div>
         <div class="card">
           <h3 class="t">Disposition</h3>
           <div class="grid2" style="gap:0 14px">
@@ -360,9 +372,9 @@
           <div class="tablet-head"><span>Aperçu des infos <small>· valeurs réelles de ce PC</small></span></div>
           <div class="ip-card ip-weather" id="ipWeather" hidden><small>Météo</small><b id="ipCity"></b></div>
           <div class="ip-tiles">
-            <div class="ip-card" data-show="cpu"><small>Processeur</small><b class="ip-big" id="ipCpu">—</b><small id="ipCpuSub"></small></div>
-            <div class="ip-card" data-show="gpu"><small>Carte graphique</small><b class="ip-big" id="ipGpu">—</b><small id="ipGpuSub"></small></div>
-            <div class="ip-card" data-show="ram"><small>Mémoire vive</small><b class="ip-big" id="ipRam">—</b><small id="ipRamSub"></small></div>
+            <div class="ip-card" data-show="cpu"><small>Processeur <span id="ipCpuName"></span></small><b class="ip-big" id="ipCpu">—</b><small id="ipCpuSub"></small></div>
+            <div class="ip-card" data-show="gpu"><small>Carte graphique <span id="ipGpuName"></span></small><b class="ip-big" id="ipGpu">—</b><small id="ipGpuSub"></small></div>
+            <div class="ip-card" data-show="ram"><small>Mémoire vive <span id="ipRamName"></span></small><b class="ip-big" id="ipRam">—</b><small id="ipRamSub"></small></div>
             <div class="ip-card" data-show="power"><small>Conso CPU + GPU</small><b class="ip-big" id="ipPow">—</b><small id="ipPowSub"></small></div>
           </div>
           <div class="ip-charts">
@@ -370,6 +382,8 @@
             <div class="ip-card" data-show="gpuChart"><small>Carte graphique · W · 1 min</small><svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline id="ipGpuLine" class="mono"/></svg></div>
             <div class="ip-card ip-wide" data-show="netChart"><small><span id="ipNetTitle">Réseau</span> · <span class="s1">Réception <b id="ipDown">—</b></span> · <span class="s2">Envoi <b id="ipUp">—</b></span></small>
               <svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline id="ipDownLine" class="s1"/><polyline id="ipUpLine" class="s2"/></svg></div>
+            <div class="ip-card ip-wide" data-show="diskChart"><small>Disque · <span class="s1">Lecture <b id="ipDiskR">—</b></span> · <span class="s2">Écriture <b id="ipDiskW">—</b></span></small>
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline id="ipDiskRLine" class="s1"/><polyline id="ipDiskWLine" class="s2"/></svg></div>
           </div>
         </div>
       </div></div>
@@ -626,7 +640,7 @@
   let savedText = '';      // pour savoir s'il y a des changements non enregistrés
   let templates = [];
   const SHOWS = [['media', 'Morceau en cours'], ['cpu', 'Processeur'], ['gpu', 'Carte graphique'], ['ram', 'Mémoire vive'], ['power', 'Consommation'],
-    ['cpuChart', 'Graphique processeur'], ['gpuChart', 'Graphique carte graphique'], ['netChart', 'Graphique réseau']];
+    ['cpuChart', 'Graphique processeur'], ['gpuChart', 'Graphique carte graphique'], ['netChart', 'Graphique réseau'], ['diskChart', 'Graphique disque']];
 
   // ---------- Chargement / enregistrement ----------
   async function load() {
@@ -2168,6 +2182,7 @@
     const r = await fetch('/api/update/install', { method: 'POST' });
     const res = await r.json();
     $('updText').textContent = r.ok ? 'Installation lancée : accepte la demande de Windows. Cette page se reconnectera après le redémarrage.' : 'Échec : ' + res.error;
+    if (r.ok) setTimeout(async () => { try { const s = await (await fetch('/api/update')).json(); if (s.error) $('updText').textContent = 'Échec : ' + s.error; } catch {} }, 6000); // Windows a pu refuser de lancer l'installeur
   });
   fetch('/api/update').then((r) => r.json()).then(showUpdate).catch(() => {});
   $('updBannerBtn').addEventListener('click', () => $('updInstall').click());
@@ -2242,8 +2257,45 @@
     if (id === 'sauvegarde') loadBackups().catch(() => {});
   }
 
+  // ---------- Fond d'écran commun (enregistré tout de suite, pas dans la configuration) ----------
+  const wallNone = $('wallNone'); // gardé ici : replaceChildren() le retire de la page
+  async function showWall() {
+    let i = { kind: null };
+    try { i = await (await fetch('/wallpaper/info', { cache: 'no-store' })).json(); } catch {}
+    const prev = $('wallPrev');
+    prev.replaceChildren();
+    if (i.kind) {
+      const m = document.createElement(i.kind === 'video' ? 'video' : 'img');
+      m.src = '/wallpaper?v=' + i.v;
+      if (i.kind === 'video') { m.muted = true; m.loop = true; m.autoplay = true; m.playsInline = true; }
+      prev.append(m);
+    } else prev.append(wallNone);
+    $('wallClear').hidden = !i.kind;
+  }
+  $('wallPick').addEventListener('click', () => $('wallFile').click());
+  $('wallFile').addEventListener('change', async () => {
+    const f = $('wallFile').files[0]; $('wallFile').value = '';
+    if (!f) return;
+    const kind = f.type.startsWith('video/') ? 'video' : f.type.startsWith('image/') ? 'image' : null;
+    if (!kind) { $('wallMsg').textContent = "Ce fichier n'est ni une image ni une vidéo."; return; }
+    if (f.size > 300 * 1024 * 1024) { $('wallMsg').textContent = 'Fichier trop gros (300 Mo au plus).'; return; }
+    $('wallMsg').textContent = 'Envoi…';
+    try {
+      const r = await fetch('/api/settings/wallpaper?kind=' + kind, { method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+      const res = await r.json().catch(() => ({}));
+      $('wallMsg').textContent = r.ok ? 'Fond enregistré : les tablettes le prennent au prochain affichage.' : 'Échec : ' + (res.error || r.status);
+    } catch (err) { $('wallMsg').textContent = 'Échec : ' + err.message; }
+    showWall();
+  });
+  $('wallClear').addEventListener('click', async () => {
+    await fetch('/api/settings/wallpaper', { method: 'DELETE' }).catch(() => {});
+    $('wallMsg').textContent = 'Fond retiré.';
+    showWall();
+  });
+  showWall();
+
   // ---------- Aperçu des infos (Affichage) : vraies valeurs de ce PC, cases « Infos affichées » respectées ----------
-  const hist = { cpu: [], gpu: [], down: [], up: [] };
+  const hist = { cpu: [], gpu: [], down: [], up: [], dr: [], dw: [] };
   const fmtNet = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' Mo/s' : Math.round(b / 1024) + ' Ko/s');
   const fmtNum = (v, unit, dec = 0) => (typeof v === 'number' ? v.toFixed(dec) + unit : '—');
   function line(pts, max) {
@@ -2252,7 +2304,7 @@
   }
   function drawInfo(s) {
     if (s) {
-      for (const [k, v] of [['cpu', s.cpu?.power], ['gpu', s.gpu?.power], ['down', s.network?.down], ['up', s.network?.up]]) {
+      for (const [k, v] of [['cpu', s.cpu?.power], ['gpu', s.gpu?.power], ['down', s.network?.down], ['up', s.network?.up], ['dr', s.disk?.read], ['dw', s.disk?.write]]) {
         hist[k].push(v || 0); if (hist[k].length > 30) hist[k].shift();
       }
       $('ipCpu').textContent = fmtNum(s.cpu?.usage, ' %', 1);
@@ -2266,12 +2318,18 @@
       $('ipNetTitle').textContent = s.network?.adapter || 'Réseau';
       $('ipDown').textContent = fmtNet(s.network?.down || 0);
       $('ipUp').textContent = fmtNet(s.network?.up || 0);
+      $('ipDiskR').textContent = fmtNet(s.disk?.read || 0);
+      $('ipDiskW').textContent = fmtNet(s.disk?.write || 0);
+      $('ipCpuName').textContent = s.cpu?.name || ''; $('ipGpuName').textContent = s.gpu?.name || ''; $('ipRamName').textContent = s.ram?.name || '';
     }
     $('ipCpuLine').setAttribute('points', line(hist.cpu, Math.max(10, ...hist.cpu)));
     $('ipGpuLine').setAttribute('points', line(hist.gpu, Math.max(10, ...hist.gpu)));
     const netMax = Math.max(1024, ...hist.down, ...hist.up);
     $('ipDownLine').setAttribute('points', line(hist.down, netMax));
     $('ipUpLine').setAttribute('points', line(hist.up, netMax));
+    const diskMax = Math.max(1024, ...hist.dr, ...hist.dw);
+    $('ipDiskRLine').setAttribute('points', line(hist.dr, diskMax));
+    $('ipDiskWLine').setAttribute('points', line(hist.dw, diskMax));
     const show = cfg?.display?.show || {};
     for (const el of $('infoPreview').querySelectorAll('[data-show]')) el.hidden = show[el.dataset.show] === false;
     const w = cfg?.display?.weather;

@@ -293,7 +293,7 @@ function parseConfig(raw) {
     standby: [0, 2, 5, 10, 30].includes(d.standby) ? d.standby : 0, // veille (horloge) après N minutes sans toucher
     vibrate: d.vibrate !== false, // petite vibration à chaque appui (Android, iPhone avec iOS 18+)
     show: Object.fromEntries(
-      ['media', 'cpu', 'gpu', 'ram', 'power', 'cpuChart', 'gpuChart', 'netChart'].map((k) => [k, d.show?.[k] !== false])
+      ['media', 'cpu', 'gpu', 'ram', 'power', 'cpuChart', 'gpuChart', 'netChart', 'diskChart'].map((k) => [k, d.show?.[k] !== false])
     ),
   };
 

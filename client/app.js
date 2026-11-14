@@ -48,6 +48,15 @@ const netChart = createLineChart($('netChart'), {
   minMax: 100 * 1024,
 });
 
+const diskChart = createLineChart($('diskChart'), {
+  series: [
+    { key: 'diskRead', label: 'Lecture', color: '--series-1' },
+    { key: 'diskWrite', label: 'Écriture', color: '--series-2' },
+  ],
+  format: speed,
+  minMax: 1024 * 1024,
+});
+
 // ---------- Graphiques en plein écran ----------
 const EXPAND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
 const CLOSE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -244,6 +253,7 @@ function renderDetail() {
   }
 }
 
+let diskOff = false; // Paramètres : « Graphique disque » décoché
 function showStats(s) {
   lastStats = s;
   $('cpuUsage').textContent = s.cpu.usage ?? '—';
@@ -268,6 +278,19 @@ function showStats(s) {
   cpuChart.update(s.history);
   gpuChart.update(s.history);
   netChart.update(s.history);
+  // Noms des composants à côté des titres
+  $('cpuName').textContent = s.cpu.name || '';
+  $('gpuName').textContent = s.gpu.name || '';
+  $('ramName').textContent = s.ram.name || '';
+  // Disque : débit lecture / écriture, et place utilisée
+  const disks = s.disk?.list || [], d0 = disks[0];
+  $('diskCard').hidden = !disks.length || diskOff;
+  $('diskName').textContent = disks.length > 1 ? `${disks.length} disques` : d0?.name || '';
+  $('lgDiskRead').textContent = speed(s.disk?.read);
+  $('lgDiskWrite').textContent = speed(s.disk?.write);
+  $('diskBar').style.width = (d0?.usedPercent ?? 0) + '%';
+  $('diskSpace').textContent = disks.map((d) => `${disks.length > 1 ? d.name + ' : ' : ''}${fr(d.usedPercent, 0)} % utilisé · ${fr(d.freeGB, 0)} Go libres sur ${fr(d.totalGB, 0)} Go`).join('  |  ');
+  diskChart.update(s.history);
   showNetApps(s.network.apps);
   renderDetail();
 }
@@ -442,7 +465,7 @@ function toast(text, isError) {
 // - copie de l'interface plus ancienne que le PC (appli Android hors ligne) : on recharge ;
 // - appli Android (la « coquille ») plus ancienne que celle fournie par le PC : on propose
 //   de l'installer, et on bloque si elle est trop ancienne pour fonctionner.
-const CLIENT_PROTOCOL = 19; // le PC annonce un protocole plus grand : la page se recharge une fois pour prendre la nouvelle interface
+const CLIENT_PROTOCOL = 20; // le PC annonce un protocole plus grand : la page se recharge une fois pour prendre la nouvelle interface
 function checkVersions(msg) {
   if (msg.protocol > CLIENT_PROTOCOL) {
     try {
@@ -502,6 +525,8 @@ function applyDisplay(d) {
     gpuChart: card('gpuChart'),
     netChart: card('netChart'),
   };
+  diskOff = show.diskChart === false;
+  if (lastStats) $('diskCard').hidden = !(lastStats.disk?.list || []).length || diskOff;
   for (const [key, el] of Object.entries(parts)) if (el) el.hidden = show[key] === false;
   const row = document.querySelector('.chart-row');
   if (row) row.hidden = show.cpuChart === false && show.gpuChart === false;

@@ -375,12 +375,57 @@ const Tools = (() => {
 
   // ---------- Réglages de cet appareil : fond d'écran, son des touches, plusieurs PC ----------
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { toast('Image trop grande pour cet appareil', true); } } };
-  function applyWallpaper() {
-    const w = store.get('pcdeck-wallpaper');
-    document.body.style.backgroundImage = w ? `linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url(${w})` : '';
-    document.body.classList.toggle('has-wallpaper', !!w);
+  // Fond d'écran. Source (par appareil) : « pc » = celui choisi dans les Paramètres du PC (par défaut), « own » = le sien, « none » = aucun.
+  // Réglages par appareil : taille (fit) et assombrissement (dim). Le fond perso : image (texte, réduite) ou vidéo (gardée dans la base de l'appareil).
+  const wallDb = () => new Promise((ok, no) => { const r = indexedDB.open('pcdeck-wall', 1); r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+  const wallVideo = async (blob) => { const db = await wallDb(); return new Promise((ok, no) => { const t = db.transaction('f', blob === undefined ? 'readonly' : 'readwrite'); const s = t.objectStore('f'); const q = blob === undefined ? s.get('video') : blob === null ? s.delete('video') : s.put(blob, 'video'); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); };
+  let wallUrl = null, wallSig = '', pcWall = null; // pcWall : { kind, v } du PC, ou { kind: null }
+  const wallMode = () => store.get('pcdeck-wallmode') || 'pc';
+  const wallFit = () => ['cover', 'contain', 'fill'].includes(store.get('pcdeck-wallfit')) ? store.get('pcdeck-wallfit') : 'cover';
+  const wallDim = () => { const n = Number(store.get('pcdeck-walldim')); return Number.isFinite(n) && store.get('pcdeck-walldim') != null ? Math.min(80, Math.max(0, n)) : 55; };
+  function paintWall() { // taille et assombrissement : tout de suite, sans recharger le fond
+    const m = document.getElementById('wallMedia'), d = document.getElementById('wallDim');
+    if (m) m.style.objectFit = wallFit();
+    if (d) d.style.background = `rgba(0,0,0,${wallDim() / 100})`;
+  }
+  async function applyWallpaper() {
+    const mode = wallMode();
+    let src = null, kind = null, sig = 'none';
+    if (mode === 'pc') {
+      if (!link) return; // pas encore connecté : rappelé à la connexion
+      try { pcWall = await (await fetch(`${location.protocol === 'https:' ? 'https' : 'http'}://${link.host}/wallpaper/info`, { cache: 'no-store' })).json(); } catch { return; }
+      if (pcWall.kind) { kind = pcWall.kind; sig = `pc${pcWall.v}`; }
+    } else if (mode === 'own') {
+      if (store.get('pcdeck-wallpaper-kind') === 'video') { kind = 'video'; sig = 'ownvideo' + (store.get('pcdeck-wallpaper-id') || ''); }
+      else if (store.get('pcdeck-wallpaper')) { kind = 'image'; src = store.get('pcdeck-wallpaper'); sig = 'ownimg' + src.length; }
+    }
+    if (sig === wallSig && document.getElementById('wallMedia') || (sig === 'none' && wallSig === 'none')) { paintWall(); return; }
+    wallSig = sig;
+    document.getElementById('wallMedia')?.remove(); document.getElementById('wallDim')?.remove();
+    if (wallUrl) { URL.revokeObjectURL(wallUrl); wallUrl = null; }
+    document.body.style.backgroundImage = '';
+    document.body.classList.remove('has-wallpaper');
+    document.body.classList.toggle('has-wallvideo', !!kind);
+    if (!kind) return;
+    try {
+      if (mode === 'pc') src = `${location.protocol === 'https:' ? 'https' : 'http'}://${link.host}/wallpaper?v=${pcWall.v}`;
+      else if (kind === 'video') {
+        const blob = await wallVideo();
+        if (!blob) { store.set('pcdeck-wallpaper-kind', null); document.body.classList.remove('has-wallvideo'); return; }
+        src = wallUrl = URL.createObjectURL(blob);
+      }
+      const m = document.createElement(kind === 'video' ? 'video' : 'img');
+      m.id = 'wallMedia'; m.src = src; m.setAttribute('aria-hidden', 'true');
+      if (kind === 'video') { m.muted = true; m.loop = true; m.autoplay = true; m.playsInline = true; }
+      const dim = document.createElement('div'); dim.id = 'wallDim';
+      document.body.prepend(dim); document.body.prepend(m);
+      paintWall();
+      if (kind === 'video') m.play().catch(() => {});
+    } catch { document.body.classList.remove('has-wallvideo'); }
   }
   applyWallpaper();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) applyWallpaper(); }); // le fond du PC a pu changer
+  window.pcdeckWallpaper = applyWallpaper; // rappelé quand la connexion au PC est prête
   // Son des touches : petit « clic » à chaque appui (Web Audio, rien à télécharger)
   let actx = null;
   document.addEventListener('pointerdown', (e) => {
@@ -397,6 +442,7 @@ const Tools = (() => {
   const pcs = () => { try { return JSON.parse(store.get('pcdeck-pcs')) || []; } catch { return []; } };
   function rememberPc(name) {
     if (!link || !name) return;
+    applyWallpaper(); // connecté : on peut chercher le fond du PC
     const list = pcs().filter((p) => p.name !== name);
     list.unshift({ name, host: link.kind === 'usb' ? (loadNetwork()?.lan?.[0] ? `${loadNetwork().lan[0]}:${loadNetwork().port || 8787}` : link.host) : link.host, token: loadToken() });
     store.set('pcdeck-pcs', JSON.stringify(list.slice(0, 8)));
@@ -413,19 +459,41 @@ const Tools = (() => {
   }
   function showDevice() {
     const wp = el('div', 'tool-block');
-    const file = el('input'); file.type = 'file'; file.accept = 'image/*'; file.hidden = true;
-    file.addEventListener('change', () => {
-      const f = file.files[0]; if (!f) return;
-      const img = new Image();
-      img.onload = () => { // réduite (1600 px) pour tenir dans la mémoire de l'appareil
-        const k = Math.min(1, 1600 / Math.max(img.width, img.height));
-        const c = document.createElement('canvas'); c.width = img.width * k; c.height = img.height * k;
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        store.set('pcdeck-wallpaper', c.toDataURL('image/jpeg', 0.82)); applyWallpaper(); URL.revokeObjectURL(img.src);
-      };
-      img.src = URL.createObjectURL(f);
-    });
-    wp.append(el('h3', '', 'Fond d\'écran'), file, btn('Choisir une image', () => file.click(), 'main'), btn('Retirer', () => { store.set('pcdeck-wallpaper', null); applyWallpaper(); }));
+    const mode = wallMode();
+    const pick = (opts, value, onChange) => { const s = el('select'); for (const [v, t] of opts) s.append(new Option(t, v)); s.value = value; s.addEventListener('change', () => onChange(s.value)); return s; };
+    wp.append(el('h3', '', "Fond d'écran"));
+    wp.append(pick([['pc', 'Celui du PC'], ['own', 'Mon propre fond (cet appareil)'], ['none', 'Aucun fond sur cet appareil']], mode, (v) => { store.set('pcdeck-wallmode', v); applyWallpaper(); showDevice(); }));
+    if (mode === 'pc') wp.append(el('p', 'tool-note', pcWall && pcWall.kind ? 'Le fond choisi dans les Paramètres du PC.' : "Aucun fond choisi sur le PC (Paramètres du PC → Affichage → Fond d'écran)."));
+    if (mode === 'own') {
+      const file = el('input'); file.type = 'file'; file.accept = 'image/*,video/*'; file.hidden = true;
+      file.addEventListener('change', async () => {
+        const f = file.files[0]; if (!f) return;
+        if (f.type.startsWith('video/')) { // vidéo : jouée en boucle, sans son, derrière les boutons
+          if (f.size > 200 * 1024 * 1024) { toast('Vidéo trop lourde (200 Mo maximum) : choisis-en une plus courte', true); return; }
+          try { await wallVideo(f); store.set('pcdeck-wallpaper', null); store.set('pcdeck-wallpaper-id', String(Date.now())); store.set('pcdeck-wallpaper-kind', 'video'); applyWallpaper(); }
+          catch { toast('Cet appareil ne peut pas garder cette vidéo', true); }
+          return;
+        }
+        const img = new Image();
+        img.onload = () => { // réduite (1600 px) pour tenir dans la mémoire de l'appareil
+          const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+          const c = document.createElement('canvas'); c.width = img.width * k; c.height = img.height * k;
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          store.set('pcdeck-wallpaper-kind', null); wallVideo(null).catch(() => {}); store.set('pcdeck-wallpaper', c.toDataURL('image/jpeg', 0.82)); applyWallpaper(); URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+      wp.append(file, btn('Choisir une image ou une vidéo', () => file.click(), 'main'),
+        btn('Retirer mon fond', () => { store.set('pcdeck-wallpaper', null); store.set('pcdeck-wallpaper-kind', null); wallVideo(null).catch(() => {}); applyWallpaper(); }));
+    }
+    if (mode !== 'none') { // taille et assombrissement : propres à cet appareil
+      wp.append(el('label', 'tool-note', 'Taille'),
+        pick([['cover', "Remplir l'écran"], ['contain', 'Entier (bandes autour)'], ['fill', 'Étirer']], wallFit(), (v) => { store.set('pcdeck-wallfit', v); paintWall(); }));
+      const dl = el('label', 'tool-note', 'Assombrir (pour bien lire les boutons)');
+      const range = el('input'); range.type = 'range'; range.min = '0'; range.max = '80'; range.step = '5'; range.value = String(wallDim());
+      range.addEventListener('input', () => { store.set('pcdeck-walldim', range.value); paintWall(); });
+      wp.append(dl, range);
+    }
     const ks = el('label', 'tool-check'); const cb = el('input'); cb.type = 'checkbox'; cb.checked = store.get('pcdeck-keysound') === '1';
     cb.addEventListener('change', () => store.set('pcdeck-keysound', cb.checked ? '1' : null));
     ks.append(cb, ' Son des touches');

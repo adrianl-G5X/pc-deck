@@ -112,17 +112,17 @@
     </div>
     <div class="tiles">
       <button class="card tile-link" type="button" data-detail="cpu" aria-label="Détails du processeur">
-        <h2>Processeur <span class="more" aria-hidden="true">›</span></h2>
+        <h2>Processeur <span class="hw" id="cpuName"></span><span class="more" aria-hidden="true">›</span></h2>
         <div class="big"><span id="cpuUsage">—</span><span class="unit"> %</span></div>
         <div class="rows"><b id="cpuTemp">—</b> · <b id="cpuPower">—</b></div>
       </button>
       <button class="card tile-link" type="button" data-detail="gpu" aria-label="Détails de la carte graphique">
-        <h2>Carte graphique <span class="more" aria-hidden="true">›</span></h2>
+        <h2>Carte graphique <span class="hw" id="gpuName"></span><span class="more" aria-hidden="true">›</span></h2>
         <div class="big"><span id="gpuUsage">—</span><span class="unit"> %</span></div>
         <div class="rows"><b id="gpuTemp">—</b> · <b id="gpuPower">—</b><span id="fpsWrap" hidden> · <b id="fps"></b> FPS</span></div>
       </button>
       <button class="card tile-link" type="button" data-detail="ram" aria-label="Détails de la mémoire vive">
-        <h2>Mémoire vive <span class="more" aria-hidden="true">›</span></h2>
+        <h2>Mémoire vive <span class="hw" id="ramName"></span><span class="more" aria-hidden="true">›</span></h2>
         <div class="big"><span id="ramPct">—</span><span class="unit"> %</span></div>
         <div class="rows"><b id="ramUsed">—</b></div>
       </button>
@@ -168,6 +168,18 @@
             <div id="netApps"></div>
           </div>
         </div>
+      </div>
+      <div class="card chart-card disk-card" id="diskCard">
+        <div class="card-head">
+          <h2><span>Disque</span> <span class="hw" id="diskName"></span> <span class="sub">2 min</span></h2>
+          <div class="legend">
+            <span><span class="swatch" style="background:var(--series-1)"></span>Lecture <b id="lgDiskRead">—</b></span>
+            <span><span class="swatch" style="background:var(--series-2)"></span>Écriture <b id="lgDiskWrite">—</b></span>
+          </div>
+          <button class="icon-btn expand" type="button" aria-label="Agrandir le graphique"></button>
+        </div>
+        <div id="diskChart"></div>
+        <div class="disk-space"><div class="disk-bar"><i id="diskBar"></i></div><small id="diskSpace"></small></div>
       </div>
     </div>
     <p class="warn" id="lhmWarn"></p>

@@ -216,12 +216,65 @@ const server = http.createServer((req, res) => {
     serveSettings(req, res, pathname);
     return;
   }
+  // Fond d'écran choisi sur le PC (image ou vidéo), pour toutes les tablettes et tous les téléphones
+  if (pathname === '/wallpaper/info' || pathname === '/wallpaper') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const m = wallMeta();
+    if (pathname === '/wallpaper/info') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify(m ? { kind: m.kind, v: m.v } : { kind: null }));
+    }
+    if (!m) return res.writeHead(404).end();
+    const headers = { 'Content-Type': m.type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'public, max-age=31536000' }; // l'adresse change avec ?v= à chaque nouveau fond
+    const r = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (r && (r[1] || r[2])) { // Safari (iPhone, iPad) lit les vidéos par morceaux
+      const start = r[1] ? Number(r[1]) : Math.max(0, m.size - Number(r[2]));
+      const end = r[1] && r[2] ? Math.min(Number(r[2]), m.size - 1) : m.size - 1;
+      if (start >= m.size || start > end) return res.writeHead(416, { 'Content-Range': `bytes */${m.size}` }).end();
+      res.writeHead(206, { ...headers, 'Content-Length': end - start + 1, 'Content-Range': `bytes ${start}-${end}/${m.size}` });
+      return fs.createReadStream(WALL + '.bin', { start, end }).pipe(res);
+    }
+    res.writeHead(200, { ...headers, 'Content-Length': m.size });
+    return fs.createReadStream(WALL + '.bin').pipe(res);
+  }
   if (['/connect', '/api/pairing', '/download/PC-Deck.apk', '/vendor/qrcode.js'].includes(pathname)) {
     serveConnect(req, res, pathname);
     return;
   }
   serveStatic(req, res);
 });
+
+// ---------- Fond d'écran commun (choisi dans les Paramètres du PC) ----------
+const WALL = path.join(DATA_DIR, 'fond-ecran'); // fond-ecran.bin (le fichier) + fond-ecran.json (son type)
+const MAX_WALL = 300 * 1024 * 1024;
+function wallMeta() {
+  try {
+    const m = JSON.parse(fs.readFileSync(WALL + '.json', 'utf8'));
+    const st = fs.statSync(WALL + '.bin');
+    return { kind: m.kind, type: m.type, v: Math.round(st.mtimeMs), size: st.size };
+  } catch { return null; }
+}
+function receiveWallpaper(req, res) {
+  const kind = new URL(req.url, 'http://x').searchParams.get('kind');
+  const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  if (!['image', 'video'].includes(kind) || !type.startsWith(kind + '/')) return json(res, 400, { error: 'Choisis une image ou une vidéo' });
+  if (Number(req.headers['content-length']) > MAX_WALL) return json(res, 413, { error: 'Fichier trop gros (300 Mo au plus)' });
+  const tmp = WALL + '.tmp';
+  const out = fs.createWriteStream(tmp);
+  let size = 0, dead = false;
+  const fail = () => { dead = true; out.destroy(); fs.rm(tmp, { force: true }, () => {}); };
+  req.on('data', (c) => { if ((size += c.length) > MAX_WALL && !dead) { fail(); if (!res.headersSent) json(res, 413, { error: 'Fichier trop gros (300 Mo au plus)' }); req.destroy(); } });
+  req.on('aborted', fail);
+  out.on('error', () => { fail(); if (!res.headersSent) json(res, 500, { error: "Impossible d'enregistrer le fichier" }); });
+  out.on('finish', () => {
+    if (dead) return;
+    fs.renameSync(tmp, WALL + '.bin');
+    fs.writeFileSync(WALL + '.json', JSON.stringify({ kind, type }));
+    console.log(`Fond d'écran : ${kind} (${Math.round(size / 1024)} Ko)`);
+    json(res, 200, { ok: true, kind });
+  });
+  req.pipe(out);
+}
 
 // ---------- Page Paramètres (seulement sur ce PC) ----------
 // Écrit config.json (déjà vérifiée) en gardant la version précédente, puis l'applique
@@ -332,6 +385,13 @@ async function serveSettings(req, res, pathname) {
   if (!isThisPc(req)) return res.writeHead(403).end();
   try {
     if (pathname === '/settings') return sendFile(res, path.join(CLIENT_DIR, 'settings.html'));
+
+    if (pathname === '/api/settings/wallpaper' && req.method === 'POST') return receiveWallpaper(req, res);
+    if (pathname === '/api/settings/wallpaper' && req.method === 'DELETE') {
+      for (const ext of ['.bin', '.json']) fs.rmSync(WALL + ext, { force: true });
+      return json(res, 200, { ok: true });
+    }
+    if (pathname === '/api/settings/wallpaper' && req.method === 'GET') return json(res, 200, wallMeta() ? { kind: wallMeta().kind } : { kind: null });
 
     // Sauvegardes automatiques (une par jour) : liste, et « Revenir à cette version »
     if (pathname === '/api/settings/backups' && req.method === 'GET') {

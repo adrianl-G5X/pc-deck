@@ -157,14 +157,53 @@ function readCores(sensors) {
   return cores;
 }
 
+// Composants (nom + identifiant) : processeur, carte graphique, barrettes de mémoire
+function collectHardware(node, out = []) {
+  if (node.HardwareId) out.push({ id: node.HardwareId, name: node.Text || '' });
+  for (const child of node.Children || []) collectHardware(child, out);
+  return out;
+}
+
 async function readLhm() {
   const response = await fetch(LHM_URL, { signal: AbortSignal.timeout(1500) });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return extract(collectSensors(await response.json(), [], []));
+  const tree = await response.json();
+  return extract(collectSensors(tree, [], []), undefined, collectHardware(tree));
+}
+
+// Noms COURTS affichés à côté des mesures : « Ryzen 9 5900X », « RTX 4070 SUPER », « 2 × Corsair »
+const squash = (s) => s.replace(/ +/g, ' ').trim();
+const shortCpu = (n) => squash(n.replace(/[(](R|TM)[)]/gi, '').replace(/ @ .*$/, '').replace(/CPU|Processor|[0-9]+-Core|^AMD |^Intel /gi, '').replace(/^Core /, '')) || n;
+const shortGpu = (n) => { const s = squash(n.replace(/[(](R|TM)[)]/gi, '').replace(/^NVIDIA GeForce |^NVIDIA |^AMD Radeon |^AMD |^Intel /i, '').replace(/ Graphics$/i, '')); return s && !/^graphics$/i.test(s) ? s : squash(n.replace(/[(](R|TM)[)]/gi, '').replace(/^AMD /, '')); };
+function hardwareNames(hw) {
+  const cpu = hw.find((h) => h.id.startsWith('/amdcpu/') || h.id.startsWith('/intelcpu/'))?.name;
+  const gpus = hw.filter((h) => h.id.startsWith('/gpu-'));
+  const gpu = (gpus.find((h) => !h.id.includes('-integrated/')) || gpus[0])?.name;
+  // Barrettes : seulement la marque (le modèle est trop long) — « 2 × Corsair »
+  const brands = hw.filter((h) => h.id.startsWith('/memory/dimm/')).map((h) => h.name.split(/[ -]/)[0]);
+  const ram = brands.length ? [...new Set(brands)].map((b) => `${brands.filter((x) => x === b).length > 1 ? brands.filter((x) => x === b).length + ' × ' : ''}${b}`).join(' + ') : null;
+  return { cpu: cpu ? shortCpu(cpu) : null, gpu: gpu ? shortGpu(gpu) : null, ram };
+}
+
+// Disques (SSD, NVMe, disque dur) : débit de lecture / écriture, place utilisée
+const isDisk = (s) => ['/nvme/', '/ssd/', '/hdd/'].some((p) => s.id.startsWith(p));
+function readDisks(sensors) {
+  const byDisk = new Map();
+  for (const s of sensors.filter(isDisk)) {
+    const d = byDisk.get(s.hardware) || { name: s.hardware };
+    if (/throughput/.test(s.id) && /^Read Rate/.test(s.name)) d.read = s.value;
+    else if (/throughput/.test(s.id) && /^Write Rate/.test(s.name)) d.write = s.value;
+    else if (s.id.includes('/load/') && s.name === 'Used Space') d.usedPercent = s.value;
+    else if (s.id.includes('/data/') && s.name === 'Free Space') d.freeGB = s.value;
+    else if (s.id.includes('/data/') && s.name === 'Total Space') d.totalGB = s.value;
+    else if (/temperature/.test(s.id) && /^(Composite )?Temperature( #1)?$/.test(s.name)) d.temp = s.value;
+    byDisk.set(s.hardware, d);
+  }
+  return [...byDisk.values()].map((d) => ({ name: d.name, read: d.read ?? null, write: d.write ?? null, usedPercent: round1(d.usedPercent), freeGB: round1(d.freeGB), totalGB: round1(d.totalGB), temp: round1(d.temp) }));
 }
 
 // Choisit les valeurs affichées parmi tous les capteurs
-function extract(sensors, netName = adapter.name) {
+function extract(sensors, netName = adapter.name, hw = []) {
   // Nom de carte introuvable dans LHM : on prend la carte qui a le plus de trafic
   if (!sensors.some((s) => isNet(s, netName))) {
     const total = new Map();
@@ -176,7 +215,10 @@ function extract(sensors, netName = adapter.name) {
   const gpuSensors = [...sensors.filter((s) => !integrated(s)), ...sensors.filter(integrated)];
   const gpu = (kind, name) => exact(gpuSensors, isGpu(kind), name);
 
+  const disks = readDisks(sensors);
   return {
+    names: hardwareNames(hw),
+    disks,
     cpuTemp: pick(sensors, isCpu('temperature'), /Tctl|Tdie|Package/i),
     cpuPower: pick(sensors, isCpu('power'), /Package/i),
     gpuTemp: pick(gpuSensors, isGpu('temperature'), /GPU Core/i),
@@ -207,8 +249,9 @@ function extract(sensors, netName = adapter.name) {
 // ---------- Mise à jour périodique ----------
 const latest = {
   time: null,
-  cpu: { usage: null, temp: null, power: null },
-  gpu: { usage: null, temp: null, power: null },
+  cpu: { usage: null, temp: null, power: null, name: null },
+  gpu: { usage: null, temp: null, power: null, name: null },
+  disk: { read: null, write: null, list: [] }, // en octets/s (total de tous les disques)
   ram: readRam(),
   power: { measured: null, estimatedWall: null },
   network: { adapter: adapter.name, kind: null, down: null, up: null }, // en octets/s ; kind : 'wifi' | 'ethernet'
@@ -219,7 +262,7 @@ const latest = {
 async function refresh() {
   latest.time = new Date().toISOString();
   latest.cpu.usage = readCpuUsage();
-  latest.ram = readRam();
+  latest.ram = { ...readRam(), name: latest.ram.name ?? null }; // le nom des barrettes est gardé d'un tour à l'autre
 
   let t = {};
   try {
@@ -241,6 +284,9 @@ async function refresh() {
   latest.network.kind = adapter.kind;
   latest.network.down = t.netDown ?? null;
   latest.network.up = t.netUp ?? null;
+  if (t.names) { latest.cpu.name = t.names.cpu; latest.gpu.name = t.names.gpu; latest.ram.name = t.names.ram; }
+  const sum = (k) => { const v = (t.disks || []).map((d) => d[k]).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) : null; };
+  latest.disk = { read: sum('read'), write: sum('write'), list: t.disks || [] };
   latest.cpu.details = t.cpuDetails ?? null;
   latest.gpu.details = t.gpuDetails ?? null;
   latest.network.apps = getNetworkApps();
@@ -261,6 +307,8 @@ async function refresh() {
     gpuUsage: latest.gpu.usage,
     down: latest.network.down,
     up: latest.network.up,
+    diskRead: latest.disk.read,
+    diskWrite: latest.disk.write,
   });
   if (latest.history.length > HISTORY_LENGTH) latest.history.shift();
 }

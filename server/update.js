@@ -95,9 +95,19 @@ async function install() {
     fs.writeFileSync(file, data);
     if (process.env.PCDECK_UPDATE_DRYRUN) return { file, dryRun: true };
     const quoted = file.replace(/'/g, "''");
-    spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command',
-      `Start-Process -FilePath '${quoted}' -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART' -Verb RunAs`],
-    { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    // Windows peut refuser de lancer l'installeur (non signé + Contrôle intelligent des applications, ou autorisation refusée) : on le dit
+    const child = spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command',
+      `try { Start-Process -FilePath '${quoted}' -ArgumentList '/SILENT','/SUPPRESSMSGBOXES','/NORESTART' -Verb RunAs -ErrorAction Stop } catch { [Console]::Error.Write($_.Exception.Message); exit 1 }`],
+    { detached: true, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    let why = '';
+    child.stderr.on('data', (d) => { why += d; });
+    child.on('close', (code) => {
+      if (!code) return;
+      state.error = /annul|cancel|1223/i.test(why) ? "Autorisation refusée : l'installation n'a pas démarré."
+        : /bloqu|stratégie|policy|4551|application control/i.test(why) ? "Windows (Contrôle intelligent des applications) bloque l'installeur car il n'est pas encore signé. Désactive-le dans Sécurité Windows, ou lance l'installeur à la main."
+        : `L'installation n'a pas démarré : ${why.trim() || 'erreur inconnue'}`;
+    });
+    child.unref();
     return { file };
   } catch (err) {
     state.error = err.message;
