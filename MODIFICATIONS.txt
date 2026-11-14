@@ -1,7 +1,7 @@
-MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.4)
+MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.5)
 =========================================================
 Derniere mise a jour : 14/11/2026
-Rien depuis la 0.4.4 : les nouveautes de cette version sont dans CHANGELOG.md.
+Rien depuis la 0.4.5 : les nouveautes de cette version sont dans CHANGELOG.md.
 (Ce fichier est mis a jour a chaque modification et a chaque push.)
 
 A VERIFIER SUR LE MATERIEL
@@ -13,8 +13,3 @@ A VERIFIER SUR LE MATERIEL
 - Signature SignPath : en attente ; sans elle, Windows 11 (Controle intelligent des applications)
   bloque l'installeur et les .exe compiles : build.ps1 -Compiled a ne pas utiliser.
 
-DEPUIS LA 0.4.4
-- Tablette : le nom du processeur, de la carte graphique et de la memoire vive est affiche a cote de chaque mesure.
-- Tablette : nouveau graphique Disque (lecture / ecriture du SSD + place utilisee). Se masque dans Parametres > Affichage (Graphique disque).
-- Fond d'ecran image ou VIDEO : choisi sur le PC (Parametres > Affichage > Fond d'ecran), pour toutes les tablettes. Sur chaque appareil (Outils > Cet appareil) : taille, assombrir, son propre fond, ou aucun fond.
-- Avec un fond d'ecran : boutons, cartes et graphiques translucides (flous). Noms du processeur, de la carte graphique et de la RAM raccourcis (Ryzen 9 5900X, RTX 4070 SUPER, 2 x Corsair).
