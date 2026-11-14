@@ -50,8 +50,10 @@ function Start-Server {
   if (-not (Test-Path $bundledNode) -and -not (Test-Path (Join-Path $root 'node_modules\ws'))) {
     Start-Process -FilePath 'npm.cmd' -ArgumentList 'install' -WorkingDirectory $root -WindowStyle Hidden -Wait
   }
-  $script:server = Start-Process -FilePath $node -ArgumentList "`"$serverJs`"" -WorkingDirectory $root `
-    -WindowStyle Hidden -PassThru -RedirectStandardOutput $logOut -RedirectStandardError $logErr
+  # Aucune console du tout (CreateNoWindow) : sous Windows 11 avec Windows Terminal, -WindowStyle Hidden laisse parfois apparaitre une fenetre
+  $psi = New-Object System.Diagnostics.ProcessStartInfo 'cmd.exe', ('/c ""{0}" "{1}" >"{2}" 2>"{3}""' -f $node, $serverJs, $logOut, $logErr)
+  $psi.WorkingDirectory = $root; $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true
+  $script:server = [System.Diagnostics.Process]::Start($psi)
   Write-Boot "serveur lance: $node (pid $($script:server.Id))"
 }
 

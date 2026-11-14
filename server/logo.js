@@ -135,13 +135,49 @@ foreach ($id in $ids) { try { $p = $id -split '!'; $pkg = $pk | Where-Object { $
 ConvertTo-Json -Compress -InputObject $r`;
     try { storeExe = JSON.parse(await run(ps, { PCDECK_IDS: JSON.stringify(storeIds) }, 60000)) || {}; } catch {}
   }
-  for (const p of list) p.process = p.appId ? storeExe[p.appId] || '' : path.basename(p.path).replace(/\.exe$/i, '');
+  for (const p of list) if (p.process === undefined) p.process = p.appId ? storeExe[p.appId] || '' : path.basename(p.path).replace(/\.exe$/i, '');
+  for (const g of await listGames()) if (!seen.has(norm(g.name))) { list.push({ ...g, process: '' }); seen.add(norm(g.name)); }
   const byName = new Map();
   for (const p of list) if (!bad.test(p.name) && !byName.has(norm(p.name))) byName.set(norm(p.name), p);
   programs = [...byName.values()].map((p) => ({ ...p, name: p.name.replace(/\s+/g, ' ').trim() })).sort((a, b) => a.name.localeCompare(b.name));
   programsAt = Date.now();
   return programs;
 }
+// Jeux installés via Steam et Epic Games : [{ name, path: 'steam://rungameid/…' | 'com.epicgames.launcher://…' }] (lien que Windows ouvre dans le lanceur du jeu)
+const NOT_GAMES = /redistributable|steamworks|linux runtime|proton|steamvr|^steam (linux|client)/i;
+async function listGames() {
+  const games = [];
+  const steamRoots = new Set();
+  const reg = await new Promise((r) => execFile('reg', ['query', 'HKCU\\Software\\Valve\\Steam', '/v', 'SteamPath'], { windowsHide: true }, (e, out) => r(String(out || ''))));
+  const main = /SteamPath\s+REG_SZ\s+(.+)/.exec(reg)?.[1]?.trim();
+  for (const m of [main, 'C:\\Program Files (x86)\\Steam']) if (m && fs.existsSync(m)) { steamRoots.add(path.normalize(m)); break; }
+  for (const root of [...steamRoots]) { // autres bibliothèques (autre disque)
+    try { for (const m of fs.readFileSync(path.join(root, 'steamapps', 'libraryfolders.vdf'), 'utf8').matchAll(/"path"\s+"([^"]+)"/g)) steamRoots.add(path.normalize(m[1].replace(/\\\\/g, '\\'))); } catch {}
+  }
+  for (const root of steamRoots) {
+    let files = [];
+    try { files = fs.readdirSync(path.join(root, 'steamapps')).filter((f) => /^appmanifest_\d+\.acf$/.test(f)); } catch {}
+    for (const f of files) {
+      try {
+        const t = fs.readFileSync(path.join(root, 'steamapps', f), 'utf8');
+        const id = /"appid"\s+"(\d+)"/.exec(t)?.[1], name = /"name"\s+"([^"]+)"/.exec(t)?.[1];
+        if (id && name && !NOT_GAMES.test(name)) games.push({ name, path: `steam://rungameid/${id}` });
+      } catch {}
+    }
+  }
+  const epic = path.join(process.env.ProgramData || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
+  let items = [];
+  try { items = fs.readdirSync(epic).filter((f) => f.endsWith('.item')); } catch {}
+  for (const f of items) {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(epic, f), 'utf8'));
+      if (j.DisplayName && j.AppName && j.CatalogNamespace && j.CatalogItemId)
+        games.push({ name: j.DisplayName, path: `com.epicgames.launcher://apps/${j.CatalogNamespace}%3A${j.CatalogItemId}%3A${j.AppName}?action=launch&silent=true` });
+    } catch {}
+  }
+  return games;
+}
+
 // Programmes qui ont une fenêtre ouverte en ce moment (pour « ajouter un bouton en 1 clic ») :
 // [{ name, path } | { name, appId }], reliés aux programmes installés quand c'est possible
 // (chemin stable du menu Démarrer, appli du Store).
@@ -178,6 +214,7 @@ const clean = (p) => String(p || '').trim().replace(/^"+|"+$/g, '').replace(/%([
 const web = (u) => { try { return /^https?:$/.test(new URL(u).protocol) ? { kind: 'web', url: new URL(u).origin } : null; } catch { return null; } };
 
 const WINDIR = process.env.windir || 'C:\\Windows';
+const GAME_LINK = /^[a-z][\w+.-]+:\/\//i; // steam://… : pas un fichier
 const EXPLORER = { kind: 'file', path: path.join(WINDIR, 'explorer.exe') };
 const isFolder = (p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } };
 
@@ -187,7 +224,7 @@ function sourceOf(action) {
   switch (action.type) {
     // Ctrl + Maj + Échap = le Gestionnaire des tâches, quelle que soit la langue de Windows
     case 'keys': return /^ctrl\+shift\+esc(ape)?$/i.test(String(action.keys).replace(/\s/g, '')) ? { kind: 'file', path: path.join(WINDIR, 'System32', 'Taskmgr.exe') } : null;
-    case 'app': return action.path ? { kind: 'file', path: clean(action.path) } : action.appId ? { kind: 'shell', id: `shell:AppsFolder\\${action.appId}` } : null;
+    case 'app': return GAME_LINK.test(action.path || '') ? null : action.path ? { kind: 'file', path: clean(action.path) } : action.appId ? { kind: 'shell', id: `shell:AppsFolder\\${action.appId}` } : null;
     case 'newtab': return action.path ? { kind: 'file', path: clean(action.path) } : null;
     case 'tab': return web(action.url);
     case 'window': return sourceOf(action.ifNotRunning);

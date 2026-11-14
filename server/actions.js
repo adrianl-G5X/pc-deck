@@ -137,6 +137,7 @@ async function runApp(action) {
     }
     return null;
   }
+  if (/^[a-z][\w+.-]+:\/\//i.test(action.path)) return launch('explorer.exe', [action.path]); // jeu Steam / Epic : lien ouvert par leur lanceur
   const proc = processOf(action.path);
   if (!action.newInstance && (await showWindow([proc], where))) return null;
   // Chemin complet qui n'existe plus (programme déplacé, désinstallé) : message clair plutôt qu'une erreur de Windows
