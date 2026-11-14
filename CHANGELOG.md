@@ -5,6 +5,8 @@ le script de publication les range sous le bon numéro, et elles s'affichent dan
 notification de mise à jour de tes proches.
 
 ## Prochaine version
+
+## 0.4.3 — 2026-11-14
 - Tablette et téléphone : Outils → Cet appareil affiche les données utilisées par PC Deck (aujourd'hui et 30 jours, écran du PC, fichiers et vidéos, le reste).
 - Toutes les vidéos du PC se lisent sur la tablette (4K HEVC des drones et téléphones, MKV…) : le PC les convertit à la volée (ffmpeg, installé en 1 clic). PDF, musique, textes et documents s'ouvrent aussi dans l'appli.
 - Tablette, menu « Outils » : fenêtres ouvertes du PC, lancer n'importe quel programme, fichiers du PC à télécharger, capture d'écran, historique du presse-papiers, dictée et commandes vocales, fond d'écran et son des touches, plusieurs PC.
