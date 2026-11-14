@@ -1,17 +1,14 @@
-MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.3)
+MODIFICATIONS DEPUIS LA DERNIERE VERSION PUBLIEE (0.4.4)
 =========================================================
 Derniere mise a jour : 14/11/2026
-Les nouveautes de la 0.4.3 sont dans CHANGELOG.md.
-
-DEPUIS LA 0.4.3
-- Le serveur ne peut plus faire apparaitre une fenetre noire (Windows Terminal) au demarrage en arriere-plan.
-- Boutons > ouvrir un programme : les jeux installes (Steam, Epic Games) apparaissent dans la liste des programmes.
+Rien depuis la 0.4.4 : les nouveautes de cette version sont dans CHANGELOG.md.
 (Ce fichier est mis a jour a chaque modification et a chaque push.)
 
-A VERIFIER SUR LE MATERIEL (0.4.3)
-- Tablette Android : installer le nouvel APK (propose tout seul), puis essayer : Outils (fenetres,
-  fichiers + visionneuse, capture, voix), lecteur video integre (video DJI 4K), son du PC, "Allumer le PC".
+A VERIFIER SUR LE MATERIEL
+- Lancer PC Deck : aucune fenetre noire, seulement l'icone pres de l'horloge.
+- Boutons > ouvrir un programme : un jeu Steam/Epic se lance depuis la tablette.
+- Tablette Android : Outils, lecteur video integre, son du PC, "Allumer le PC".
 - Wake-on-LAN : BIOS et carte reseau a regler, a tester PC eteint.
-- Un PC vierge (portable) : installeur, assistant de bienvenue, icone PC Deck, mise a jour.
-- Signature SignPath : en attente de la reponse ; sans elle, Windows 11 (Controle intelligent des
-  applications) bloque l'installeur et les programmes compiles (.exe) : build.ps1 -Compiled a ne pas utiliser.
+- Un PC vierge (portable) : installeur, assistant de bienvenue, mise a jour depuis la 0.4.3.
+- Signature SignPath : en attente ; sans elle, Windows 11 (Controle intelligent des applications)
+  bloque l'installeur et les .exe compiles : build.ps1 -Compiled a ne pas utiliser.

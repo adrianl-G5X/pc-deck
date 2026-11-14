@@ -6,6 +6,10 @@ notification de mise à jour de tes proches.
 
 ## Prochaine version
 
+## 0.4.4 — 2026-11-14
+- PC Deck ne fait plus apparaître de fenêtre noire au démarrage (Windows 11 avec Windows Terminal).
+- Boutons « Ouvrir un programme » : les jeux installés avec Steam et Epic Games sont proposés dans la liste.
+
 ## 0.4.3 — 2026-11-14
 - Tablette et téléphone : Outils → Cet appareil affiche les données utilisées par PC Deck (aujourd'hui et 30 jours, écran du PC, fichiers et vidéos, le reste).
 - Toutes les vidéos du PC se lisent sur la tablette (4K HEVC des drones et téléphones, MKV…) : le PC les convertit à la volée (ffmpeg, installé en 1 clic). PDF, musique, textes et documents s'ouvrent aussi dans l'appli.

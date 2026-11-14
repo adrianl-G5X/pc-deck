@@ -1,6 +1,6 @@
 {
   "name": "pc-deck",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Stream Deck maison : contrÃ´le du PC et tableau de bord depuis une tablette Android",
   "private": true,
   "license": "MIT",
