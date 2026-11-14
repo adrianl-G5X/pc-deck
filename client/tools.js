@@ -521,7 +521,15 @@ const Tools = (() => {
     useBlock.append(el('h3', '', 'Données utilisées'), el('p', 'tool-note', 'Calcul…'));
     useBlock.id = 'dataUse';
     send({ type: 'data-usage' });
-    body.replaceChildren(useBlock, wp, ks, tips, pcBlock);
+    // Android dans le navigateur (pas dans l'appli) : proposer l'appli, plus complète (son du PC, allumer le PC…)
+    const apkBlock = /Android/i.test(navigator.userAgent) && !window.PcDeckNative ? el('div', 'tool-block') : null;
+    if (apkBlock) {
+      const a = el('a', 'main', "Télécharger l'appli Android"); a.href = '/download/PC-Deck.apk'; a.download = 'PC-Deck.apk';
+      a.style.cssText = 'display:inline-flex;align-items:center;min-height:42px;padding:0 14px;border-radius:9px;text-decoration:none;color:inherit;background:var(--accent, #f2a33a)';
+      apkBlock.append(el('h3', '', 'Appli Android'), a,
+        el('p', 'tool-note', "Ouvre le fichier téléchargé et accepte l'installation. Ouvre ensuite l'appli PC Deck : elle trouve ce PC toute seule ; tape le code affiché sur le PC (icône PC Deck → Connecter)."));
+    }
+    body.replaceChildren(...[apkBlock, useBlock, wp, ks, tips, pcBlock].filter(Boolean));
   }
 
   function showDataUse(m) {

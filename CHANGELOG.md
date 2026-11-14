@@ -6,6 +6,10 @@ notification de mise à jour de tes proches.
 
 ## Prochaine version
 
+## 0.4.7 — 2026-11-14
+- Connecter un appareil : nouvel onglet « Android (navigateur) » pour utiliser PC Deck dans Chrome sans installer l’appli.
+- Dans le navigateur d’un Android : Outils → Cet appareil → « Télécharger l’appli Android ».
+
 ## 0.4.6 — 2026-11-14
 - Mise à jour : le bouton ouvre la page de téléchargement de la nouvelle version (en attendant que l’installeur soit signé, Windows peut le bloquer s’il est lancé tout seul).
 - Installer PC Deck alors qu’il est déjà là fait une simple mise à jour : pas de questions, réglages et appareils gardés, et plus de deuxième serveur qui tourne en même temps.

@@ -72,6 +72,7 @@
 
   <div class="tabs" role="tablist">
     <button role="tab" data-tab="android" aria-selected="true">Tablette Android</button>
+    <button role="tab" data-tab="web" aria-selected="false">Android (navigateur)</button>
     <button role="tab" data-tab="ios" aria-selected="false">iPhone ou iPad</button>
     <button role="tab" data-tab="pc" aria-selected="false">Autre ordinateur</button>
     <button role="tab" data-tab="remote" aria-selected="false">Hors de chez toi</button>
@@ -92,6 +93,22 @@
       <div class="code" data-code>······</div>
       <div class="timer" data-timer></div>
       <small>Un seul code suffit : une fois connectée, l'appli retient toutes les adresses du PC (y compris Tailscale) et passe toute seule par Tailscale hors de chez toi, si Tailscale est actif sur la tablette.</small>
+    </div>
+  </section>
+
+  <!-- Android sans installer l'appli : dans Chrome -->
+  <section class="grid" data-panel="web" hidden>
+    <div class="step">
+      <h2><span class="n">1</span>Scanner</h2>
+      <p>Scanne ce code avec l'appareil photo du téléphone, puis touche le lien : Chrome s'ouvre et se connecte tout seul. Rien à installer.</p>
+      <div class="qr" id="qrAndroidWeb"></div>
+      <div class="timer" data-timer></div>
+    </div>
+    <div class="step">
+      <h2><span class="n">2</span>Garder l'icône</h2>
+      <p>Dans Chrome, touche <b>⋮</b> puis <b>« Ajouter à l'écran d'accueil »</b>. Pour passer à l'appli plus tard : dans PC Deck, <b>Outils → Cet appareil → Télécharger l'appli Android</b>.</p>
+      <p>Le code, si on te le demande :</p>
+      <div class="code" data-code>······</div>
     </div>
   </section>
 
@@ -190,8 +207,9 @@
         // iPhone / navigateur : le laissez-passer est gardé PAR adresse. Avec Tailscale, une seule adresse sert à la maison et dehors
         const iosHost = info.tailscale && $('iosTs').checked ? `${info.tailscale}:${info.port}` : host;
         drawQr($('qrWeb'), `http://${iosHost}/?pair=${code}`);
+        drawQr($('qrAndroidWeb'), `http://${host}/?pair=${code}`);
       } else {
-        $('qrApp').innerHTML = $('qrWeb').innerHTML = '';
+        $('qrApp').innerHTML = $('qrWeb').innerHTML = $('qrAndroidWeb').innerHTML = '';
       }
     }
     // Hors de chez soi : liens officiels de Tailscale (Play Store / App Store)
